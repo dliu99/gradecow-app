@@ -1,25 +1,77 @@
 import { Stack, Link } from 'expo-router';
-
-import { View } from 'react-native';
-
+import { useEffect, useRef, useState } from 'react';
+import { Animated, View, Text } from 'react-native';
 import { Button } from '@/components/Button';
-import { Container } from '@/components/Container';
-import { ScreenContent } from '@/components/ScreenContent';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 
 export default function Home() {
+  const sentences = [
+    ' stay on top of every assignment',
+    ' see your grades update in real time',
+    ' get gentle reminders before due dates hit',
+    ' keep everything organized in one place',
+  ];
+
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const [sentenceIndex, setSentenceIndex] = useState(0);
+
+  useEffect(() => {
+    let isMounted = true;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const runCycle = () => {
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }).start(() => {
+        if (!isMounted) return;
+        setSentenceIndex((prev) => (prev + 1) % sentences.length);
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }).start(() => {
+          if (!isMounted) return;
+          timeoutId = setTimeout(runCycle, 1500);
+        });
+      });
+    };
+
+    timeoutId = setTimeout(runCycle, 1500);
+
+    return () => {
+      isMounted = false;
+      if (timeoutId) clearTimeout(timeoutId);
+      fadeAnim.stopAnimation();
+    };
+  }, [fadeAnim, sentences.length]);
+
   return (
-    <View className={styles.container}>
-      <Stack.Screen options={{ title: 'Home' }} />
-      <Container>
-        <ScreenContent path="app/index.tsx" title="Home"></ScreenContent>
-        <Link href={{ pathname: '/details', params: { name: 'Dan' } }} asChild>
-          <Button title="Show Details" />
-        </Link>
-      </Container>
-    </View>
+    <SafeAreaView className="flex flex-1 bg-teal-950">
+      <Stack.Screen options={{ title: 'Home' }}/>
+      <View className="flex flex-1 w-full items-center justify-between px-6 pt-16 pb-12">
+        <View className="flex-1 w-full items-center justify-center">
+          <View className="w-80 px-4 items-center">
+            <Text className="text-white text-2xl font-bold text-center">
+              gradecow 🐂 helps you
+            </Text>
+            <Animated.Text
+              style={{ opacity: fadeAnim, minHeight: 48, textAlign: 'center' }}
+              className="text-white text-2xl font-bold leading-snug"
+            >
+              {sentences[sentenceIndex]}
+            </Animated.Text>
+          </View>
+        </View>
+        <View className="w-full items-center">
+          <Link href="/auth-modal" asChild>
+            <Button title="Sign in with Infinite Campus" className="w-3/4 bg-slate-100" />
+          </Link>
+        </View>
+      </View>
+    </SafeAreaView>
   );
 }
 
-const styles = {
-  container: 'flex flex-1 bg-white',
-};
