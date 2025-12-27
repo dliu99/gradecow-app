@@ -67,7 +67,7 @@ export default function Home() {
         </View>
         <View className="w-full items-center">
           <Link href="/auth-modal" asChild>
-            <Button title="Sign in with Infinite Campus" className="w-3/4 bg-slate-100" />
+            <Button title="Sign in with Infinite Campus" className="w-full bg-slate-100" />
           </Link>
         </View>
       </View>
