@@ -20,10 +20,9 @@ const handleNavigationStateChange = async (navState: any) => {
 
 const handleError = (error: any) => {
   console.error('WebView error:', error);
-  console.log('WebView error:', error);
 };
 
-export default function WebViewAuthScreen() {
+export default function AuthModal() {
   const webViewRef = useRef<WebView>(null);
   return (
     
@@ -32,7 +31,7 @@ export default function WebViewAuthScreen() {
       {(
         <WebView
         ref={webViewRef}
-        source={{ uri: "" }}
+        source={{ uri: "https://google.com" }}
         onNavigationStateChange={handleNavigationStateChange}
         onError={handleError}
         javaScriptEnabled={true}
