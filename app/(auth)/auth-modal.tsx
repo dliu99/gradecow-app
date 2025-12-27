@@ -11,7 +11,7 @@ const handleNavigationStateChange = async (navState: any) => {
       const cookies = await CookieManager.getAll(true);
       console.log('Auth successful, cookies:', cookies);
       console.log('Cookies:', cookies);
-      router.push('/dashboard');
+      router.replace('/dashboard');
     } catch (error) {
       console.error('Error getting cookies:', error);
       console.log('Error:', error);
