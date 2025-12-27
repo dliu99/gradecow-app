@@ -9,8 +9,8 @@ app.get('/', (c) => {
 app.get('/ic/districts', async (c) => {
   const state = c.req.query('state');
   const query = c.req.query('query');
-  if (!state || !query) {
-    return c.json({ ok: false, message: 'State and query are required' }, 400)
+  if (!state || !query || query.length < 3) {
+    return c.json({ ok: false, message: 'State and query are required and query must be at least 3 characters' }, 400)
   }
   const response = await fetch(`https://www.infinitecampus.com/api/district?state=${state.toUpperCase()}&query=${query}`)
   const data = await response.json()

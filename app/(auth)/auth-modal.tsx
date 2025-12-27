@@ -1,16 +1,17 @@
 import React, { useRef, useState } from 'react';
 import { View, Text, Alert } from 'react-native';
-import { Stack } from 'expo-router';
+import { router, Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { WebView } from 'react-native-webview';
 import CookieManager from '@react-native-cookies/cookies';
 
 
 const handleNavigationStateChange = async (navState: any) => {
-  if (navState.url.includes('campus/nav-wrapper/')) {
+  if (navState.url.includes('home')) {
     try {
       const cookies = await CookieManager.getAll(true);
       console.log('Auth successful, cookies:', cookies);
       console.log('Cookies:', cookies);
+      router.push('/dashboard');
     } catch (error) {
       console.error('Error getting cookies:', error);
       console.log('Error:', error);
@@ -24,14 +25,14 @@ const handleError = (error: any) => {
 
 export default function AuthModal() {
   const webViewRef = useRef<WebView>(null);
+  const { uri } = useLocalSearchParams<{ uri: string }>();
+  
   return (
-    
-    <View>
+    <View className="flex-1">
       <Stack.Screen options={{ title: 'Sign in to Infinite Campus'}} />
-      {(
-        <WebView
+      <WebView
         ref={webViewRef}
-        source={{ uri: "https://google.com" }}
+        source={{ uri: uri }}
         onNavigationStateChange={handleNavigationStateChange}
         onError={handleError}
         javaScriptEnabled={true}
@@ -39,7 +40,6 @@ export default function AuthModal() {
         sharedCookiesEnabled={true}
         thirdPartyCookiesEnabled={true}
       />
-      )}
     </View>
   );
 }
