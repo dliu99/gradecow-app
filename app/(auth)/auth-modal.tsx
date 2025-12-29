@@ -14,7 +14,6 @@ const handleNavigationStateChange = async (navState: any) => {
       const cookieHeader = Object.entries(cookies)
       .map(([name, c]) => `${name}=${c.value}`)
       .join(";");
-      console.log('Auth successful, cookies:', cookieHeader);
 
       //verify cookies are valid
       const r1 = await fetch('http://localhost:3000/ic/verify', {
@@ -28,12 +27,9 @@ const handleNavigationStateChange = async (navState: any) => {
         return;
       }
       const d1 = await r1.json();
-      console.log('Verify cookies response:', r1.status, d1);
-
 
       const deviceID = uuidv4();
       //await DeviceInfo.getUniqueId().then(id => id.toString());
-      console.log('deviceID', deviceID);
       const response = await fetch('http://localhost:3000/ic/auth', {
         method: 'POST',
         body: JSON.stringify({
