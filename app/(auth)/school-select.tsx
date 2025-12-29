@@ -107,7 +107,7 @@ export default function SchoolSelect() {
         const response = await fetch(
           `${API_BASE_URL}/ic/districts?state=${selectedState}&query=${encodeURIComponent(searchQuery)}`
         );
-        const result = await response.json();
+        const result = await response.json() as { ok: boolean, data: District[] };
         if (result.ok) {
           setDistricts(result.data);
         }
@@ -155,7 +155,6 @@ export default function SchoolSelect() {
           </Button>
         </MenuView>
 
-        {/* Search Input */}
         {selectedState && (
           <View className="mb-4">
             <TextInput
