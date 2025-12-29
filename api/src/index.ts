@@ -1,6 +1,14 @@
 import { Hono } from 'hono'
 import { ContentfulStatusCode } from 'hono/utils/http-status'
 import * as z from 'zod'
+import { 
+  sealSessionData,
+  unsealSessionData,
+  createICSession, 
+  getICSession,
+  updateICSessionToken
+} from './supabase'
+
 const app = new Hono()
 
 app.get('/', (c) => {
@@ -22,16 +30,19 @@ app.post('/ic/verify', async (c) => {
   const res = await c.req.json()
   const schema = z.object({
     cookieHeader: z.string(),
+    districtUrl: z.string().optional(),
   })
-  const { cookieHeader } = schema.parse(res)
-  const response = await fetch('https://srvusd.infinitecampus.org/campus/resources/my/userAccount', {
+  const { cookieHeader, districtUrl } = schema.parse(res)
+  const baseUrl = districtUrl
+  
+  const response = await fetch(`https://${baseUrl}/campus/resources/my/userAccount`, {
     headers: {
       'Accept': 'application/json, text/plain, */*',
       'Accept-Language': 'en-US,en;q=0.9',
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
       'Expires': '0',
-      'Referer': 'https://srvusd.infinitecampus.org/campus/apps/portal/student/home',
+      'Referer': `https://${baseUrl}/campus/apps/portal/student/home`,
       'Sec-Fetch-Dest': 'empty',
       'Sec-Fetch-Mode': 'cors',
       'Sec-Fetch-Site': 'same-origin',
@@ -58,29 +69,31 @@ app.post('/ic/auth', async (c) => {
     deviceModel: z.string(),
     systemVersion: z.string(),
     deviceID: z.string(),
+    districtUrl: z.string(),
+    personID: z.number(),
   })
   
-  const { cookieHeader, deviceType, deviceModel, systemVersion, deviceID } = schema.parse(res)
+  const { cookieHeader, deviceType, deviceModel, systemVersion, deviceID, districtUrl, personID } = schema.parse(res)
+  const baseUrl = districtUrl
 
-  if (!cookieHeader || !deviceType || !deviceModel || !systemVersion || !deviceID) {
-    return c.json({ ok: false, message: 'cookieHeader, deviceType, deviceModel, systemVersion, and deviceID are required' }, 400)
+  if (!cookieHeader || !deviceType || !deviceModel || !systemVersion || !deviceID || !personID) {
+    return c.json({ ok: false, message: 'cookieHeader, deviceType, deviceModel, systemVersion, deviceID, and personID are required' }, 400)
   }
 
   const xsrfMatch = cookieHeader.match(/XSRF-TOKEN=([^;]+)/);
   const xsrfToken = xsrfMatch ? xsrfMatch[1] : '';
 
-  const response = await fetch('https://srvusd.infinitecampus.org/campus/api/campus/hybridDevice/update', {
+  const response = await fetch(`https://${baseUrl}/campus/api/campus/hybridDevice/update`, {
     method: 'POST',
     headers: {
-      'Host': 'srvusd.infinitecampus.org',
+      'Host': baseUrl,
       'Accept': 'application/json, text/plain, */*',
       'Content-Type': 'application/json',
-      'Origin': 'https://srvusd.infinitecampus.org',
+      'Origin': `https://${baseUrl}`,
       'Connection': 'keep-alive',
       'Cookie': `appType=student;campus_hybrid_app=student;deviceID=${deviceID};${cookieHeader};`,
       'x-xsrf-token': xsrfToken,
       'Accept-Language': 'en-US,en;q=0.9',
-      'Content-Length': '195',
       'Accept-Encoding': 'gzip, deflate, br',
       'User-Agent': 'StudentApp/1.11.4 Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
       //'Referer': 'https://srvusd.infinitecampus.org/campus/nav-wrapper/student/portal/student/home?appName=sanRamon',
@@ -101,11 +114,217 @@ app.post('/ic/auth', async (c) => {
     console.log('Failed to authenticate', response.headers.getSetCookie().join('; '));
     return c.json({ ok: false, message: 'Failed to authenticate' }, response.status as ContentfulStatusCode)
   }
-  else {
-    const setCookieHeader = response.headers.getSetCookie().join('; ');
-    console.log('persistent cookie:', setCookieHeader);
-    return c.json({ ok: true, data: data, cookie: cookieHeader+';'+setCookieHeader })
+
+  const setCookieHeader = response.headers.getSetCookie().join('; ');
+  const fullCookie = cookieHeader + ';' + setCookieHeader;
+  console.log('Full cookie to store:', fullCookie);
+
+  const sessionToken = await sealSessionData({ cookie: fullCookie });
+
+  const sessionPersonId = await createICSession({
+    personId: personID,
+    districtUrl: baseUrl,
+    deviceType,
+    deviceModel,
+    systemVersion,
+    deviceId: deviceID,
+    sessionToken,
+  });
+
+  if (!sessionPersonId) {
+    return c.json({ ok: false, message: 'Failed to create session record' }, 500)
   }
+
+  return c.json({ 
+    ok: true, 
+    data: data, 
+    personId: sessionPersonId,
+    districtUrl: baseUrl,
+  })
 })
+
+app.post('/ic/refresh', async (c) => {
+  const res = await c.req.json()
+  const schema = z.object({
+    personId: z.number(),
+  })
+  
+  const { personId } = schema.parse(res)
+
+  const session = await getICSession(personId)
+  if (!session) {
+    return c.json({ ok: false, message: 'Session not found' }, 404)
+  }
+
+  const sessionData = await unsealSessionData<{ cookie: string }>(session.session_token)
+  const storedCookie = sessionData.cookie
+  if (!storedCookie) {
+    return c.json({ ok: false, message: 'Failed to retrieve session credentials' }, 500)
+  }
+
+  const persistentMatch = storedCookie.match(/persistent_cookie=([^;]+)/)
+  const persistentCookie = persistentMatch ? persistentMatch[1] : ''
+  
+  if (!persistentCookie) {
+    return c.json({ ok: false, message: 'No persistent cookie found, re-authentication required' }, 401)
+  }
+
+  const baseUrl = session.district_url
+
+  const formData = new URLSearchParams({
+    'bootstrapped': '1',
+    'registrationToken': 'null',
+    'deviceID': session.device_id,
+    'deviceModel': session.device_model,
+    'deviceType': session.device_type,
+    'appType': 'student',
+    'appVersion': '1.11.4',
+    'systemVersion': session.system_version,
+    'appName': 'gradecow'
+  })
+
+  const response = await fetch(`https://${baseUrl}/campus/mobile/hybridAppUtil.jsp`, {
+    method: 'POST',
+    headers: {
+      'Host': baseUrl,
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Sec-Fetch-Site': 'same-origin',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Sec-Fetch-Mode': 'navigate',
+      'Origin': `https://${baseUrl}`,
+      'User-Agent': 'StudentApp/1.11.4 Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
+      'Referer': `https://${baseUrl}/campus/mobile/hybridAppUtil.jsp`,
+      'Connection': 'keep-alive',
+      'Sec-Fetch-Dest': 'document',
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Cookie': `persistent_cookie=${persistentCookie}; campus_hybrid_app=student; deviceID=${session.device_id}`,
+    },
+    body: formData.toString()
+  })
+
+  if (response.status !== 200) {
+    console.log('Failed to refresh session', response.status, response.statusText)
+    return c.json({ ok: false, message: 'Failed to refresh session' }, response.status as ContentfulStatusCode)
+  }
+
+  const newCookies = response.headers.getSetCookie()
+  if (newCookies.length === 0) {
+    return c.json({ ok: false, message: 'No new cookies received' }, 500)
+  }
+
+  const cookieParts: Record<string, string> = {}
+
+  storedCookie.split(';').forEach(part => {
+    const [key, value] = part.trim().split('=')
+    if (key && value) {
+      cookieParts[key] = value
+    }
+  })
+
+  newCookies.forEach(cookieStr => {
+    const [cookiePart] = cookieStr.split(';')
+    const [key, value] = cookiePart.trim().split('=')
+    if (key && value) {
+      cookieParts[key] = value
+    }
+  })
+
+  const updatedCookie = Object.entries(cookieParts)
+    .map(([key, value]) => `${key}=${value}`)
+    .join('; ')
+
+  const newSessionToken = await sealSessionData({ cookie: updatedCookie })
+  const updated = await updateICSessionToken(personId, newSessionToken)
+  if (!updated) {
+    return c.json({ ok: false, message: 'Failed to update session credentials' }, 500)
+  }
+
+  console.log('Session refreshed successfully for personId:', personId)
+  return c.json({ ok: true, message: 'Session refreshed successfully' })
+})
+
+async function refreshSession(session: {
+  person_id: number
+  district_url: string
+  device_type: string
+  device_model: string
+  system_version: string
+  device_id: string
+  session_token: string
+}): Promise<{ ok: boolean }> {
+  const sessionData = await unsealSessionData<{ cookie: string }>(session.session_token)
+  const storedCookie = sessionData.cookie
+  if (!storedCookie) {
+    return { ok: false }
+  }
+
+  const persistentMatch = storedCookie.match(/persistent_cookie=([^;]+)/)
+  const persistentCookie = persistentMatch ? persistentMatch[1] : ''
+  
+  if (!persistentCookie) {
+    return { ok: false }
+  }
+
+  const baseUrl = session.district_url
+
+  const formData = new URLSearchParams({
+    'bootstrapped': '1',
+    'registrationToken': 'null',
+    'deviceID': session.device_id,
+    'deviceModel': session.device_model,
+    'deviceType': session.device_type,
+    'appType': 'student',
+    'appVersion': '1.11.4',
+    'systemVersion': session.system_version,
+    'appName': 'gradecow'
+  })
+
+  const response = await fetch(`https://${baseUrl}/campus/mobile/hybridAppUtil.jsp`, {
+    method: 'POST',
+    headers: {
+      'Host': baseUrl,
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Origin': `https://${baseUrl}`,
+      'User-Agent': 'StudentApp/1.11.4 Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Cookie': `persistent_cookie=${persistentCookie}; campus_hybrid_app=student; deviceID=${session.device_id}`,
+    },
+    body: formData.toString()
+  })
+
+  if (response.status !== 200) {
+    return { ok: false }
+  }
+
+  const newCookies = response.headers.getSetCookie()
+  if (newCookies.length === 0) {
+    return { ok: false }
+  }
+
+  const cookieParts: Record<string, string> = {}
+  
+  storedCookie.split(';').forEach(part => {
+    const [key, value] = part.trim().split('=')
+    if (key && value) {
+      cookieParts[key] = value
+    }
+  })
+
+  newCookies.forEach(cookieStr => {
+    const [cookiePart] = cookieStr.split(';')
+    const [key, value] = cookiePart.trim().split('=')
+    if (key && value) {
+      cookieParts[key] = value
+    }
+  })
+
+  const updatedCookie = Object.entries(cookieParts)
+    .map(([key, value]) => `${key}=${value}`)
+    .join('; ')
+
+  const newSessionToken = await sealSessionData({ cookie: updatedCookie })
+  const updated = await updateICSessionToken(session.person_id, newSessionToken)
+  return { ok: updated }
+}
 
 export default app
