@@ -9,6 +9,15 @@ import {
 
 const auth = new Hono()
 
+interface SessionData {
+  cookie: string
+  baseURL: string
+  deviceId: string
+  deviceModel: string
+  deviceType: string
+  systemVersion: string
+}
+
 auth.get('/', (c) => {
   return c.json({ ok: true,message: 'Hello Hono!' })
 })
@@ -24,39 +33,106 @@ auth.get('/districts', async (c) => {
   return c.json({ ok: true, data })
 })
 
-auth.post('/verify', async (c) => {
+auth.post('/verify-session', async (c) => {
   const res = await c.req.json()
   const schema = z.object({
-    cookieHeader: z.string(),
-    districtURL: z.string().optional(),
+    sessionToken: z.string(),
   })
-  const { cookieHeader, districtURL } = schema.parse(res)
-  const baseURL = `${districtURL}/campus`
   
-  const response = await fetch(`https://${baseURL}/resources/my/userAccount`, {
+  const { sessionToken } = schema.parse(res)
+
+  let sessionData: SessionData
+  try {
+    sessionData = await unsealSessionData<SessionData>(sessionToken)
+  } catch {
+    console.log('Invalid session token')
+    return c.json({ ok: false, message: 'Invalid session token' }, 401)
+  }
+
+  const storedCookie = sessionData.cookie
+  if (!storedCookie) {
+    console.log('No credentials found in session')
+    return c.json({ ok: false, message: 'No credentials found in session' }, 401)
+  }
+
+  const baseURL = sessionData.baseURL
+  const districtURL = baseURL.replace('/campus', '')
+
+  const verifyResponse = await fetch(`https://${baseURL}/resources/my/userAccount`, {
     headers: {
       'Accept': 'application/json, text/plain, */*',
       'Accept-Language': 'en-US,en;q=0.9',
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
-      'Expires': '0',
-      'Referer': `https://${baseURL}/apps/portal/student/home`,
-      'Sec-Fetch-Dest': 'empty',
-      'Sec-Fetch-Mode': 'cors',
-      'Sec-Fetch-Site': 'same-origin',
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',
-      'sec-ch-ua': '"Chromium";v="143", "Not A(Brand";v="24"',
-      'sec-ch-ua-mobile': '?0',
-      'sec-ch-ua-platform': '"macOS"',
-      'Cookie': cookieHeader
+      'User-Agent': 'gradecow/1.0 Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
+      'Cookie': storedCookie
     }
-  });
-  if (response.status !== 200) {
-    console.log('Failed to verify cookies', response.status, response.statusText);
-    return c.json({ ok: false, message: 'Failed to verify cookies' }, response.status as ContentfulStatusCode)
+  })
+
+  if (verifyResponse.status !== 200) {
+    console.log('Session verification failed', verifyResponse.status, verifyResponse.statusText)
+    return c.json({ ok: false, message: 'Session expired or invalid' }, 401)
   }
-  const data = await response.json();
-  return c.json({ ok: true, data: data })
+
+  const userData = await verifyResponse.json() as { personID: number }
+  const personID = userData.personID
+
+  if (!personID) {
+    console.log('No personID found in user data')
+    return c.json({ ok: false, message: 'Failed to get user information' }, 401)
+  }
+
+  const xsrfMatch = storedCookie.match(/XSRF-TOKEN=([^;]+)/)
+  const xsrfToken = xsrfMatch ? xsrfMatch[1] : ''
+
+  const updateResponse = await fetch(`https://${baseURL}/api/campus/hybridDevice/update`, {
+    method: 'POST',
+    headers: {
+      'Host': districtURL,
+      'Accept': 'application/json, text/plain, */*',
+      'Content-Type': 'application/json',
+      'Origin': `https://${districtURL}`,
+      'Connection': 'keep-alive',
+      'Cookie': `appType=student;campus_hybrid_app=student;deviceID=${sessionData.deviceId};${storedCookie};`,
+      'x-xsrf-token': xsrfToken,
+      'Accept-Language': 'en-US,en;q=0.9',
+      'User-Agent': 'StudentApp/1.11.4 Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
+    },
+    body: JSON.stringify({
+      'registrationToken': 'gradecow',
+      'deviceType': sessionData.deviceType,
+      'deviceModel': 'gradecow/' + sessionData.deviceModel,
+      'appVersion': '1.11.4',
+      'systemVersion': sessionData.systemVersion,
+      'deviceID': sessionData.deviceId,
+      'keepMeLoggedIn': true
+    })
+  })
+
+  if (updateResponse.status !== 200) {
+    console.log('Device update failed', updateResponse.status)
+    return c.json({ ok: false, message: 'Failed to refresh device registration' }, updateResponse.status as ContentfulStatusCode)
+  }
+
+  const setCookieHeader = updateResponse.headers.getSetCookie().join('; ')
+  const updatedCookie = storedCookie + ';' + setCookieHeader
+
+  const newSessionToken = await sealSessionData({ 
+    cookie: updatedCookie,
+    baseURL: sessionData.baseURL,
+    deviceId: sessionData.deviceId,
+    deviceModel: sessionData.deviceModel,
+    deviceType: sessionData.deviceType,
+    systemVersion: sessionData.systemVersion,
+  })
+
+  await createICSession(personID, newSessionToken)
+
+  return c.json({ 
+    ok: true, 
+    personId: personID,
+    sessionToken: newSessionToken,
+  })
 })
 
 auth.post('/updateDevice', async (c) => {
@@ -68,14 +144,32 @@ auth.post('/updateDevice', async (c) => {
     systemVersion: z.string(),
     deviceID: z.string(),
     districtURL: z.string(),
-    personID: z.number(),
   })
   
-  const { cookieHeader, deviceType, deviceModel, systemVersion, deviceID, districtURL, personID } = schema.parse(res)
+  const { cookieHeader, deviceType, deviceModel, systemVersion, deviceID, districtURL } = schema.parse(res)
   const baseURL = `${districtURL}/campus`
 
-  if (!cookieHeader || !deviceType || !deviceModel || !systemVersion || !deviceID || !personID) {
-    return c.json({ ok: false, message: 'cookieHeader, deviceType, deviceModel, systemVersion, deviceID, and personID are required' }, 400)
+  const verifyResponse = await fetch(`https://${baseURL}/resources/my/userAccount`, {
+    headers: {
+      'Accept': 'application/json, text/plain, */*',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'User-Agent': 'StudentApp/1.11.4 Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
+      'Cookie': cookieHeader
+    }
+  })
+
+  if (verifyResponse.status !== 200) {
+    console.log('Cookie verification failed', verifyResponse.status, verifyResponse.statusText)
+    return c.json({ ok: false, message: 'Failed to verify login' }, verifyResponse.status as ContentfulStatusCode)
+  }
+
+  const userData = await verifyResponse.json() as { personID: number }
+  const personID = userData.personID
+
+  if (!personID) {
+    return c.json({ ok: false, message: 'Failed to get user information' }, 401)
   }
 
   const xsrfMatch = cookieHeader.match(/XSRF-TOKEN=([^;]+)/);
@@ -106,11 +200,12 @@ auth.post('/updateDevice', async (c) => {
       'keepMeLoggedIn': true
     })
   });
+  console.log(deviceID, deviceType, 'gradecow/'+deviceModel)
   const data = await response.json();
   console.log('Auth response:', data);
   if (response.status !== 200) {
     console.log('Failed to authenticate', response.headers.getSetCookie().join('; '));
-    return c.json({ ok: false, message: 'Failed to authenticate' }, response.status as ContentfulStatusCode)
+    return c.json({ ok: false, message: response.statusText }, response.status as ContentfulStatusCode)
   }
 
   const setCookieHeader = response.headers.getSetCookie().join('; ');
@@ -138,120 +233,6 @@ auth.post('/updateDevice', async (c) => {
     personId: sessionPersonId,
     sessionToken,
   })
-})
-
-interface SessionData {
-  cookie: string
-  baseURL: string
-  deviceId: string
-  deviceModel: string
-  deviceType: string
-  systemVersion: string
-}
-
-auth.post('/refresh', async (c) => {
-  const res = await c.req.json()
-  const schema = z.object({
-    sessionToken: z.string(),
-  })
-  
-  const { sessionToken } = schema.parse(res)
-
-  let sessionData: SessionData
-  try {
-    sessionData = await unsealSessionData<SessionData>(sessionToken)
-  } catch {
-    return c.json({ ok: false, message: 'Invalid session token' }, 401)
-  }
-
-  const storedCookie = sessionData.cookie
-  if (!storedCookie) {
-    return c.json({ ok: false, message: 'Failed to retrieve session credentials' }, 500)
-  }
-
-  const persistentMatch = storedCookie.match(/persistent_cookie=([^;]+)/)
-  const persistentCookie = persistentMatch ? persistentMatch[1] : ''
-  
-  if (!persistentCookie) {
-    return c.json({ ok: false, message: 'No persistent cookie found, re-authentication required' }, 401)
-  }
-
-  const baseURL = sessionData.baseURL
-  const districtURL = baseURL.replace('/campus', '')
-
-  const formData = new URLSearchParams({
-    'bootstrapped': '1',
-    'registrationToken': 'null',
-    'deviceID': sessionData.deviceId,
-    'deviceModel': sessionData.deviceModel,
-    'deviceType': sessionData.deviceType,
-    'appType': 'student',
-    'appVersion': '1.11.4',
-    'systemVersion': sessionData.systemVersion,
-    'appName': 'gradecow'
-  })
-
-  const response = await fetch(`https://${baseURL}/mobile/hybridAppUtil.jsp`, {
-    method: 'POST',
-    headers: {
-      'Host': districtURL,
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      'Sec-Fetch-Site': 'same-origin',
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Sec-Fetch-Mode': 'navigate',
-      'Origin': `https://${districtURL}`,
-      'User-Agent': 'StudentApp/1.11.4 Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
-      'Referer': `https://${baseURL}/mobile/hybridAppUtil.jsp`,
-      'Connection': 'keep-alive',
-      'Sec-Fetch-Dest': 'document',
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Cookie': `persistent_cookie=${persistentCookie}; campus_hybrid_app=student; deviceID=${sessionData.deviceId}`,
-    },
-    body: formData.toString()
-  })
-
-  if (response.status !== 200) {
-    console.log('Failed to refresh session', response.status, response.statusText)
-    return c.json({ ok: false, message: 'Failed to refresh session' }, response.status as ContentfulStatusCode)
-  }
-
-  const newCookies = response.headers.getSetCookie()
-  if (newCookies.length === 0) {
-    return c.json({ ok: false, message: 'No new cookies received' }, 500)
-  }
-
-  const cookieParts: Record<string, string> = {}
-
-  storedCookie.split(';').forEach(part => {
-    const [key, value] = part.trim().split('=')
-    if (key && value) {
-      cookieParts[key] = value
-    }
-  })
-
-  newCookies.forEach(cookieStr => {
-    const [cookiePart] = cookieStr.split(';')
-    const [key, value] = cookiePart.trim().split('=')
-    if (key && value) {
-      cookieParts[key] = value
-    }
-  })
-
-  const updatedCookie = Object.entries(cookieParts)
-    .map(([key, value]) => `${key}=${value}`)
-    .join('; ')
-
-  const newSessionToken = await sealSessionData({ 
-    cookie: updatedCookie,
-    baseURL: sessionData.baseURL,
-    deviceId: sessionData.deviceId,
-    deviceModel: sessionData.deviceModel,
-    deviceType: sessionData.deviceType,
-    systemVersion: sessionData.systemVersion,
-  })
-
-  console.log('Session refreshed successfully')
-  return c.json({ ok: true, sessionToken: newSessionToken })
 })
 
 export default auth

@@ -125,7 +125,9 @@ export default function SchoolSelect() {
   const handleDistrictSelect = (district: District) => {
     router.push({
       pathname: '/(auth)/auth-modal',
-      params: { uri: district.student_login_url.replace('/campus/portal/', '/campus/portal/students/') }
+      params: { uri: district.student_login_url.replace('/campus/portal/', '/campus/portal/students/'),
+        districtAppName: district.district_app_name
+       }
     });
   };
 

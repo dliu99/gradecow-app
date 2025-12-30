@@ -8,13 +8,13 @@ import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 import { storeAuthSession } from '../../utils/storage';
 
-
 export default function AuthModal() {
   const webViewRef = useRef<WebView>(null);
   const { uri } = useLocalSearchParams<{ uri: string }>();
   const bootstrapAttempted = useRef(false);
-  
+  const { districtAppName } = useLocalSearchParams<{ districtAppName: string }>();
   const districtURL = new URL(uri).hostname;
+  const deviceID = uuidv4();
 
   const handleNavigationStateChange = async (navState: any) => {
     if (navState.url.includes('nav-wrapper/student/portal/student/home')) {
@@ -25,37 +25,6 @@ export default function AuthModal() {
           .join(';');
         
         const districtURL = new URL(navState.url).hostname;
-      const r1 = await fetch('http://localhost:3000/auth/verify', {
-        method: 'POST',
-        body: JSON.stringify({
-          cookieHeader: cookieHeader,
-          districtURL: districtURL,
-        }),
-      });
-      if (r1.status !== 200) {
-        console.log('Failed to verify cookiessss', r1.status, r1.statusText);
-        Alert.alert('Error', 'Failed to verify login. Please try again.');
-        return;
-      }
-
-      const verifyData = await r1.json() as {
-        data: {
-          personID: number;
-          firstName: string;
-          lastName: string;
-          [key: string]: unknown;
-        };
-      };
-      
-      const personID = verifyData.data.personID;
-      if (!personID) {
-        console.error('No personID in verify response');
-        Alert.alert('Error', 'Failed to get user information. Please try again.');
-        return;
-      }
-      
-      console.log('Verified user:', verifyData.data.firstName, verifyData.data.lastName, 'personID:', personID);
-        const deviceID = uuidv4();
         
         const authResponse = await fetch('http://localhost:3000/auth/updateDevice', {
           method: 'POST',
@@ -69,7 +38,6 @@ export default function AuthModal() {
             systemVersion: DeviceInfo.getSystemVersion(),
             deviceID: deviceID,
             districtURL: districtURL,
-            personID: personID,
           }),
         });
         
@@ -78,9 +46,7 @@ export default function AuthModal() {
           message?: string;
           personId: number;
           sessionToken: string;
-          data?: unknown;
         };
-        console.log('Auth response:', authResponse.status, authData);
 
         if (!authResponse.ok || !authData.ok) {
           console.error('Auth failed:', authData.message);
@@ -89,8 +55,6 @@ export default function AuthModal() {
         }
 
         storeAuthSession(authData.personId, authData.sessionToken);
-        console.log('Auth session stored successfully for personId:', authData.personId);
-
         router.replace('/dashboard');
       } catch (error) {
         console.error('Error during authentication:', error);
@@ -109,7 +73,7 @@ export default function AuthModal() {
       await CookieManager.set(uri, {
         name: 'campus_hybrid_app',
         value: 'student',
-        domain: districtURL,
+        domain: new URL(uri).hostname,
         path: '/',
         expires: (Date.now() + 1000 * 60 * 60 * 24 * 30).toString(),
         secure: true,
@@ -118,17 +82,15 @@ export default function AuthModal() {
       bootstrapAttempted.current = true;
       
       // not sure if the following is necessary, but it works now so I'm leaving it
-      const deviceID = uuidv4();
+      //const deviceID = uuidv4();
       const model = DeviceInfo.getModel();
       const deviceType = DeviceInfo.getDeviceType();
       const systemVersion = DeviceInfo.getSystemVersion();
-
-      const baseURL = `${districtURL}/campus`;
-
+//fix: sanRamon hardcoded?
       const script = `
         (function() {            
             const formData = new URLSearchParams({
-              'appName': 'sanRamon',
+              'appName': '${districtAppName}',
               'deviceID': '${deviceID}',
               'deviceModel': '${model}',
               'deviceType': '${deviceType}',
@@ -140,12 +102,11 @@ export default function AuthModal() {
             });
 
             const xhr = new XMLHttpRequest();
-            xhr.open('POST', 'https://${baseURL}/mobile/hybridAppUtil.jsp', true);
+            xhr.open('POST', 'https://${districtURL}/campus/mobile/hybridAppUtil.jsp', true);
             xhr.setRequestHeader('Accept', 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8');
             xhr.setRequestHeader('Accept-Language', 'en-US,en;q=0.9');
             xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
             xhr.setRequestHeader('User-Agent', 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148');
-
             xhr.send(formData.toString());
         })();
         true;
@@ -177,4 +138,3 @@ export default function AuthModal() {
     </View>
   );
 }
-
