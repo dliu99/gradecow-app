@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import * as Iron from 'iron-webcrypto'
 
+const ironKey = process.env.IRON_KEY as string
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://otgnosivxwcrosclmyxv.supabase.co'
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
@@ -8,7 +9,7 @@ if (!supabaseServiceKey) {
   console.warn('SUPABASE_SERVICE_ROLE_KEY not set')
 }
 
-const ironKey = process.env.IRON_KEY as string
+
 
 export const supabase = createClient(supabaseUrl, supabaseServiceKey || '', {
   auth: {
