@@ -28,19 +28,19 @@ auth.post('/verify', async (c) => {
   const res = await c.req.json()
   const schema = z.object({
     cookieHeader: z.string(),
-    districtUrl: z.string().optional(),
+    districtURL: z.string().optional(),
   })
-  const { cookieHeader, districtUrl } = schema.parse(res)
-  const baseUrl = districtUrl
+  const { cookieHeader, districtURL } = schema.parse(res)
+  const baseURL = `${districtURL}/campus`
   
-  const response = await fetch(`https://${baseUrl}/campus/resources/my/userAccount`, {
+  const response = await fetch(`https://${baseURL}/resources/my/userAccount`, {
     headers: {
       'Accept': 'application/json, text/plain, */*',
       'Accept-Language': 'en-US,en;q=0.9',
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
       'Expires': '0',
-      'Referer': `https://${baseUrl}/campus/apps/portal/student/home`,
+      'Referer': `https://${baseURL}/apps/portal/student/home`,
       'Sec-Fetch-Dest': 'empty',
       'Sec-Fetch-Mode': 'cors',
       'Sec-Fetch-Site': 'same-origin',
@@ -67,12 +67,12 @@ auth.post('/updateDevice', async (c) => {
     deviceModel: z.string(),
     systemVersion: z.string(),
     deviceID: z.string(),
-    districtUrl: z.string(),
+    districtURL: z.string(),
     personID: z.number(),
   })
   
-  const { cookieHeader, deviceType, deviceModel, systemVersion, deviceID, districtUrl, personID } = schema.parse(res)
-  const baseUrl = districtUrl
+  const { cookieHeader, deviceType, deviceModel, systemVersion, deviceID, districtURL, personID } = schema.parse(res)
+  const baseURL = `${districtURL}/campus`
 
   if (!cookieHeader || !deviceType || !deviceModel || !systemVersion || !deviceID || !personID) {
     return c.json({ ok: false, message: 'cookieHeader, deviceType, deviceModel, systemVersion, deviceID, and personID are required' }, 400)
@@ -81,13 +81,13 @@ auth.post('/updateDevice', async (c) => {
   const xsrfMatch = cookieHeader.match(/XSRF-TOKEN=([^;]+)/);
   const xsrfToken = xsrfMatch ? xsrfMatch[1] : '';
 
-  const response = await fetch(`https://${baseUrl}/campus/api/campus/hybridDevice/update`, {
+  const response = await fetch(`https://${baseURL}/api/campus/hybridDevice/update`, {
     method: 'POST',
     headers: {
-      'Host': baseUrl,
+      'Host': districtURL,
       'Accept': 'application/json, text/plain, */*',
       'Content-Type': 'application/json',
-      'Origin': `https://${baseUrl}`,
+      'Origin': `https://${districtURL}`,
       'Connection': 'keep-alive',
       'Cookie': `appType=student;campus_hybrid_app=student;deviceID=${deviceID};${cookieHeader};`,
       'x-xsrf-token': xsrfToken,
@@ -119,7 +119,7 @@ auth.post('/updateDevice', async (c) => {
 
   const sessionToken = await sealSessionData({ 
     cookie: fullCookie,
-    districtUrl: baseUrl,
+    baseURL: `${districtURL}/campus`,
     deviceId: deviceID,
     deviceModel,
     deviceType,
@@ -142,7 +142,7 @@ auth.post('/updateDevice', async (c) => {
 
 interface SessionData {
   cookie: string
-  districtUrl: string
+  baseURL: string
   deviceId: string
   deviceModel: string
   deviceType: string
@@ -176,7 +176,8 @@ auth.post('/refresh', async (c) => {
     return c.json({ ok: false, message: 'No persistent cookie found, re-authentication required' }, 401)
   }
 
-  const baseUrl = sessionData.districtUrl
+  const baseURL = sessionData.baseURL
+  const districtURL = baseURL.replace('/campus', '')
 
   const formData = new URLSearchParams({
     'bootstrapped': '1',
@@ -190,17 +191,17 @@ auth.post('/refresh', async (c) => {
     'appName': 'gradecow'
   })
 
-  const response = await fetch(`https://${baseUrl}/campus/mobile/hybridAppUtil.jsp`, {
+  const response = await fetch(`https://${baseURL}/mobile/hybridAppUtil.jsp`, {
     method: 'POST',
     headers: {
-      'Host': baseUrl,
+      'Host': districtURL,
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       'Sec-Fetch-Site': 'same-origin',
       'Accept-Language': 'en-US,en;q=0.9',
       'Sec-Fetch-Mode': 'navigate',
-      'Origin': `https://${baseUrl}`,
+      'Origin': `https://${districtURL}`,
       'User-Agent': 'StudentApp/1.11.4 Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
-      'Referer': `https://${baseUrl}/campus/mobile/hybridAppUtil.jsp`,
+      'Referer': `https://${baseURL}/mobile/hybridAppUtil.jsp`,
       'Connection': 'keep-alive',
       'Sec-Fetch-Dest': 'document',
       'Content-Type': 'application/x-www-form-urlencoded',
@@ -242,7 +243,7 @@ auth.post('/refresh', async (c) => {
 
   const newSessionToken = await sealSessionData({ 
     cookie: updatedCookie,
-    districtUrl: sessionData.districtUrl,
+    baseURL: sessionData.baseURL,
     deviceId: sessionData.deviceId,
     deviceModel: sessionData.deviceModel,
     deviceType: sessionData.deviceType,

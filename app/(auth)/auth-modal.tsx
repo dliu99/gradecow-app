@@ -14,7 +14,7 @@ export default function AuthModal() {
   const { uri } = useLocalSearchParams<{ uri: string }>();
   const bootstrapAttempted = useRef(false);
   
-  const districtUrl = new URL(uri).hostname; // https://x.infinitecampus.org -> x.infinitecampus.org
+  const districtURL = new URL(uri).hostname;
 
   const handleNavigationStateChange = async (navState: any) => {
     if (navState.url.includes('nav-wrapper/student/portal/student/home')) {
@@ -24,13 +24,12 @@ export default function AuthModal() {
           .map(([name, c]) => `${name}=${c.value}`)
           .join(';');
         
-        const districtUrl = new URL(navState.url).hostname;
-      //verify cookies are valid
+        const districtURL = new URL(navState.url).hostname;
       const r1 = await fetch('http://localhost:3000/auth/verify', {
         method: 'POST',
         body: JSON.stringify({
           cookieHeader: cookieHeader,
-          districtUrl: districtUrl,
+          districtURL: districtURL,
         }),
       });
       if (r1.status !== 200) {
@@ -69,7 +68,7 @@ export default function AuthModal() {
             deviceModel: DeviceInfo.getModel(),
             systemVersion: DeviceInfo.getSystemVersion(),
             deviceID: deviceID,
-            districtUrl: districtUrl,
+            districtURL: districtURL,
             personID: personID,
           }),
         });
@@ -110,7 +109,7 @@ export default function AuthModal() {
       await CookieManager.set(uri, {
         name: 'campus_hybrid_app',
         value: 'student',
-        domain: districtUrl,
+        domain: districtURL,
         path: '/',
         expires: (Date.now() + 1000 * 60 * 60 * 24 * 30).toString(),
         secure: true,
@@ -123,6 +122,8 @@ export default function AuthModal() {
       const model = DeviceInfo.getModel();
       const deviceType = DeviceInfo.getDeviceType();
       const systemVersion = DeviceInfo.getSystemVersion();
+
+      const baseURL = `${districtURL}/campus`;
 
       const script = `
         (function() {            
@@ -139,7 +140,7 @@ export default function AuthModal() {
             });
 
             const xhr = new XMLHttpRequest();
-            xhr.open('POST', 'https://${districtUrl}/campus/mobile/hybridAppUtil.jsp', true);
+            xhr.open('POST', 'https://${baseURL}/mobile/hybridAppUtil.jsp', true);
             xhr.setRequestHeader('Accept', 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8');
             xhr.setRequestHeader('Accept-Language', 'en-US,en;q=0.9');
             xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
