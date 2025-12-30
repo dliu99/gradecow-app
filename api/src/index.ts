@@ -5,8 +5,6 @@ import {
   sealSessionData,
   unsealSessionData,
   createICSession, 
-  getICSession,
-  updateICSessionToken
 } from './supabase'
 
 const app = new Hono()
@@ -15,7 +13,7 @@ app.get('/', (c) => {
   return c.json({ ok: true,message: 'Hello Hono!' })
 })
 
-app.get('/ic/districts', async (c) => {
+app.get('/auth/districts', async (c) => {
   const state = c.req.query('state');
   const query = c.req.query('query');
   if (!state || !query || query.length < 3) {
@@ -26,7 +24,7 @@ app.get('/ic/districts', async (c) => {
   return c.json({ ok: true, data })
 })
 
-app.post('/ic/verify', async (c) => {
+app.post('/auth/verify', async (c) => {
   const res = await c.req.json()
   const schema = z.object({
     cookieHeader: z.string(),
@@ -61,7 +59,7 @@ app.post('/ic/verify', async (c) => {
   return c.json({ ok: true, data: data })
 })
 
-app.post('/ic/auth', async (c) => {
+app.post('/auth/updateDevice', async (c) => {
   const res = await c.req.json()
   const schema = z.object({
     cookieHeader: z.string(),
@@ -119,17 +117,16 @@ app.post('/ic/auth', async (c) => {
   const fullCookie = cookieHeader + ';' + setCookieHeader;
   console.log('Full cookie to store:', fullCookie);
 
-  const sessionToken = await sealSessionData({ cookie: fullCookie });
-
-  const sessionPersonId = await createICSession({
-    personId: personID,
+  const sessionToken = await sealSessionData({ 
+    cookie: fullCookie,
     districtUrl: baseUrl,
-    deviceType,
-    deviceModel,
-    systemVersion,
     deviceId: deviceID,
-    sessionToken,
+    deviceModel,
+    deviceType,
+    systemVersion,
   });
+
+  const sessionPersonId = await createICSession(personID, sessionToken);
 
   if (!sessionPersonId) {
     return c.json({ ok: false, message: 'Failed to create session record' }, 500)
@@ -139,24 +136,34 @@ app.post('/ic/auth', async (c) => {
     ok: true, 
     data: data, 
     personId: sessionPersonId,
-    districtUrl: baseUrl,
+    sessionToken,
   })
 })
 
-app.post('/ic/refresh', async (c) => {
+interface SessionData {
+  cookie: string
+  districtUrl: string
+  deviceId: string
+  deviceModel: string
+  deviceType: string
+  systemVersion: string
+}
+
+app.post('/auth/refresh', async (c) => {
   const res = await c.req.json()
   const schema = z.object({
-    personId: z.number(),
+    sessionToken: z.string(),
   })
   
-  const { personId } = schema.parse(res)
+  const { sessionToken } = schema.parse(res)
 
-  const session = await getICSession(personId)
-  if (!session) {
-    return c.json({ ok: false, message: 'Session not found' }, 404)
+  let sessionData: SessionData
+  try {
+    sessionData = await unsealSessionData<SessionData>(sessionToken)
+  } catch {
+    return c.json({ ok: false, message: 'Invalid session token' }, 401)
   }
 
-  const sessionData = await unsealSessionData<{ cookie: string }>(session.session_token)
   const storedCookie = sessionData.cookie
   if (!storedCookie) {
     return c.json({ ok: false, message: 'Failed to retrieve session credentials' }, 500)
@@ -169,17 +176,17 @@ app.post('/ic/refresh', async (c) => {
     return c.json({ ok: false, message: 'No persistent cookie found, re-authentication required' }, 401)
   }
 
-  const baseUrl = session.district_url
+  const baseUrl = sessionData.districtUrl
 
   const formData = new URLSearchParams({
     'bootstrapped': '1',
     'registrationToken': 'null',
-    'deviceID': session.device_id,
-    'deviceModel': session.device_model,
-    'deviceType': session.device_type,
+    'deviceID': sessionData.deviceId,
+    'deviceModel': sessionData.deviceModel,
+    'deviceType': sessionData.deviceType,
     'appType': 'student',
     'appVersion': '1.11.4',
-    'systemVersion': session.system_version,
+    'systemVersion': sessionData.systemVersion,
     'appName': 'gradecow'
   })
 
@@ -197,7 +204,7 @@ app.post('/ic/refresh', async (c) => {
       'Connection': 'keep-alive',
       'Sec-Fetch-Dest': 'document',
       'Content-Type': 'application/x-www-form-urlencoded',
-      'Cookie': `persistent_cookie=${persistentCookie}; campus_hybrid_app=student; deviceID=${session.device_id}`,
+      'Cookie': `persistent_cookie=${persistentCookie}; campus_hybrid_app=student; deviceID=${sessionData.deviceId}`,
     },
     body: formData.toString()
   })
@@ -233,98 +240,17 @@ app.post('/ic/refresh', async (c) => {
     .map(([key, value]) => `${key}=${value}`)
     .join('; ')
 
-  const newSessionToken = await sealSessionData({ cookie: updatedCookie })
-  const updated = await updateICSessionToken(personId, newSessionToken)
-  if (!updated) {
-    return c.json({ ok: false, message: 'Failed to update session credentials' }, 500)
-  }
+  const newSessionToken = await sealSessionData({ 
+    cookie: updatedCookie,
+    districtUrl: sessionData.districtUrl,
+    deviceId: sessionData.deviceId,
+    deviceModel: sessionData.deviceModel,
+    deviceType: sessionData.deviceType,
+    systemVersion: sessionData.systemVersion,
+  })
 
-  console.log('Session refreshed successfully for personId:', personId)
-  return c.json({ ok: true, message: 'Session refreshed successfully' })
+  console.log('Session refreshed successfully')
+  return c.json({ ok: true, sessionToken: newSessionToken })
 })
-
-async function refreshSession(session: {
-  person_id: number
-  district_url: string
-  device_type: string
-  device_model: string
-  system_version: string
-  device_id: string
-  session_token: string
-}): Promise<{ ok: boolean }> {
-  const sessionData = await unsealSessionData<{ cookie: string }>(session.session_token)
-  const storedCookie = sessionData.cookie
-  if (!storedCookie) {
-    return { ok: false }
-  }
-
-  const persistentMatch = storedCookie.match(/persistent_cookie=([^;]+)/)
-  const persistentCookie = persistentMatch ? persistentMatch[1] : ''
-  
-  if (!persistentCookie) {
-    return { ok: false }
-  }
-
-  const baseUrl = session.district_url
-
-  const formData = new URLSearchParams({
-    'bootstrapped': '1',
-    'registrationToken': 'null',
-    'deviceID': session.device_id,
-    'deviceModel': session.device_model,
-    'deviceType': session.device_type,
-    'appType': 'student',
-    'appVersion': '1.11.4',
-    'systemVersion': session.system_version,
-    'appName': 'gradecow'
-  })
-
-  const response = await fetch(`https://${baseUrl}/campus/mobile/hybridAppUtil.jsp`, {
-    method: 'POST',
-    headers: {
-      'Host': baseUrl,
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      'Origin': `https://${baseUrl}`,
-      'User-Agent': 'StudentApp/1.11.4 Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Cookie': `persistent_cookie=${persistentCookie}; campus_hybrid_app=student; deviceID=${session.device_id}`,
-    },
-    body: formData.toString()
-  })
-
-  if (response.status !== 200) {
-    return { ok: false }
-  }
-
-  const newCookies = response.headers.getSetCookie()
-  if (newCookies.length === 0) {
-    return { ok: false }
-  }
-
-  const cookieParts: Record<string, string> = {}
-  
-  storedCookie.split(';').forEach(part => {
-    const [key, value] = part.trim().split('=')
-    if (key && value) {
-      cookieParts[key] = value
-    }
-  })
-
-  newCookies.forEach(cookieStr => {
-    const [cookiePart] = cookieStr.split(';')
-    const [key, value] = cookiePart.trim().split('=')
-    if (key && value) {
-      cookieParts[key] = value
-    }
-  })
-
-  const updatedCookie = Object.entries(cookieParts)
-    .map(([key, value]) => `${key}=${value}`)
-    .join('; ')
-
-  const newSessionToken = await sealSessionData({ cookie: updatedCookie })
-  const updated = await updateICSessionToken(session.person_id, newSessionToken)
-  return { ok: updated }
-}
 
 export default app

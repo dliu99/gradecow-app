@@ -26,7 +26,7 @@ export default function AuthModal() {
         
         const districtUrl = new URL(navState.url).hostname;
       //verify cookies are valid
-      const r1 = await fetch('http://localhost:3000/ic/verify', {
+      const r1 = await fetch('http://localhost:3000/auth/verify', {
         method: 'POST',
         body: JSON.stringify({
           cookieHeader: cookieHeader,
@@ -58,7 +58,7 @@ export default function AuthModal() {
       console.log('Verified user:', verifyData.data.firstName, verifyData.data.lastName, 'personID:', personID);
         const deviceID = uuidv4();
         
-        const authResponse = await fetch('http://localhost:3000/ic/auth', {
+        const authResponse = await fetch('http://localhost:3000/auth/updateDevice', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -78,7 +78,7 @@ export default function AuthModal() {
           ok: boolean;
           message?: string;
           personId: number;
-          districtUrl: string;
+          sessionToken: string;
           data?: unknown;
         };
         console.log('Auth response:', authResponse.status, authData);
@@ -89,7 +89,7 @@ export default function AuthModal() {
           return;
         }
 
-        storeAuthSession(authData.personId, authData.districtUrl);
+        storeAuthSession(authData.personId, authData.sessionToken);
         console.log('Auth session stored successfully for personId:', authData.personId);
 
         router.replace('/dashboard');

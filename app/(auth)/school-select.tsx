@@ -105,7 +105,7 @@ export default function SchoolSelect() {
       setLoading(true);
       try {
         const response = await fetch(
-          `${API_BASE_URL}/ic/districts?state=${selectedState}&query=${encodeURIComponent(searchQuery)}`
+          `${API_BASE_URL}/auth/districts?state=${selectedState}&query=${encodeURIComponent(searchQuery)}`
         );
         const result = await response.json() as { ok: boolean, data: District[] };
         if (result.ok) {

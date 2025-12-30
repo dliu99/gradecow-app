@@ -16,16 +16,16 @@ export function removePersonId(): void {
   storage.remove('personId')
 }
 
-export function setDistrictUrl(url: string): void {
-  storage.set('districtUrl', url)
+export function setSessionToken(token: string): void {
+  storage.set('sessionToken', token)
 }
 
-export function getDistrictUrl(): string | undefined {
-  return storage.getString('districtUrl')
+export function getSessionToken(): string | undefined {
+  return storage.getString('sessionToken')
 }
 
-export function removeDistrictUrl(): void {
-  storage.remove('districtUrl')
+export function removeSessionToken(): void {
+  storage.remove('sessionToken')
 }
 
 export function setAuthenticated(value: boolean): void {
@@ -38,23 +38,23 @@ export function isAuthenticated(): boolean {
 
 export function clearAuth(): void {
   removePersonId()
-  removeDistrictUrl()
+  removeSessionToken()
   setAuthenticated(false)
 }
 
-export function storeAuthSession(personId: number, districtUrl: string): void {
+export function storeAuthSession(personId: number, sessionToken: string): void {
   setPersonId(personId)
-  setDistrictUrl(districtUrl)
+  setSessionToken(sessionToken)
   setAuthenticated(true)
 }
 
-export function getAuthSession(): { personId: number; districtUrl: string } | null {
+export function getAuthSession(): { personId: number; sessionToken: string } | null {
   const personId = getPersonId()
-  const districtUrl = getDistrictUrl()
+  const sessionToken = getSessionToken()
   
-  if (!personId || !districtUrl) {
+  if (!personId || !sessionToken) {
     return null
   }
   
-  return { personId, districtUrl }
+  return { personId, sessionToken }
 }
