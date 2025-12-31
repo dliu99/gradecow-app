@@ -47,100 +47,99 @@ const extractCourseGrades = (enrollments: Enrollment[]): ExtractedCourse[] => {
 }
 
 const ic = new Hono<{ Variables: Variables }>()
-ic.use(async (c, next) => {
-    const sessionToken = c.req.header('Authorization')
-    if (!sessionToken) {
-        return c.json({ ok: false, message: 'Unauthorized' }, 401)
-    }
-    try {
-        const session = await Iron.unseal(sessionToken, ironKey, Iron.defaults)
-        c.set('session', session as Session)
-    } catch (error) {
-        return c.json({ ok: false, message: 'Invalid session token' }, 401)
-    }
-    await next()
-})
+  .use(async (c, next) => {
+      const sessionToken = c.req.header('Authorization')
+      if (!sessionToken) {
+          return c.json({ ok: false, message: 'Unauthorized' }, 401)
+      }
+      try {
+          const session = await Iron.unseal(sessionToken, ironKey, Iron.defaults)
+          c.set('session', session as Session)
+      } catch (error) {
+          return c.json({ ok: false, message: 'Invalid session token' }, 401)
+      }
+      await next()
+  })
+  .get('/', async (c) => {
+      return c.json({ ok: true, session: c.get('session') })
+  })
+  .get('/courseGrades', async (c) => {
+      const session = c.get('session')
+      const baseUrl = session.baseURL
+      console.log(session.cookie)
+      console.log(`https://${baseUrl}/resources/portal/grades`)
+      const response = await fetch(`https://${baseUrl}/resources/portal/grades`, {
+          headers: { Cookie: session.cookie }
+      })
 
-ic.get('/', async (c) => {
-    return c.json({ ok: true, session: c.get('session') })
-})
+      if (response.status !== 200) {
+          return c.json(response.statusText, response.status as ContentfulStatusCode)
+      }
 
-ic.get('/course-grades', async (c) => {
-    const session = c.get('session')
-    const baseUrl = session.baseURL
-    console.log(session.cookie)
-    console.log(`https://${baseUrl}/resources/portal/grades`)
-    const response = await fetch(`https://${baseUrl}/resources/portal/grades`, {
-        headers: { Cookie: session.cookie }
-    })
+      const data = await response.json() as Enrollment[]
+      const grades = extractCourseGrades(data)
+      return c.json(grades)
+  })
+  .get('/assignments', async (c) => {
+      const session = c.get('session')
+      const response = await fetch(`https://${session.baseURL}/api/portal/assignment/listView`, {
+          headers: { Cookie: session.cookie }
+      })
 
-    if (response.status !== 200) {
-        return c.json({ ok: false, message: response.statusText }, response.status as ContentfulStatusCode)
-    }
+      if (response.status !== 200) {
+          return c.json({ ok: false, message: response.statusText }, response.status as ContentfulStatusCode)
+      }
 
-    const data = await response.json() as Enrollment[]
-    const grades = extractCourseGrades(data)
-    return c.json({ ok: true, grades })
-})
+      const data = await response.json() as any[]
+      const assignments: Assignment[] = data.map(a => ({
+          assignmentName: a.assignmentName,
+          objectSectionID: a.objectSectionID,
+          sectionID: a.sectionID,
+          dueDate: a.dueDate,
+          assignedDate: a.assignedDate,
+          scoreModifiedDate: a.scoreModifiedDate,
+          scorePoints: a.scorePoints,
+          score: a.score,
+          scorePercentage: a.scorePercentage,
+          totalPoints: a.totalPoints,
+          comments: a.comments,
+          feedback: a.feedback
+      }))
 
-ic.get('/assignments', async (c) => {
-    const session = c.get('session')
-    const response = await fetch(`https://${session.baseURL}/api/portal/assignment/listView`, {
-        headers: { Cookie: session.cookie }
-    })
+      return c.json(assignments)
+  })
 
-    if (response.status !== 200) {
-        return c.json({ ok: false, message: response.statusText }, response.status as ContentfulStatusCode)
-    }
+  .get('/assignments/:objectSectionID', async (c) => {
+      const session = c.get('session')
+      const objectSectionID = c.req.param('objectSectionID')
+      const response = await fetch(`https://${session.baseURL}/api/instruction/curriculum/section/content/${objectSectionID}?personID=${session.personID}`, {
+          headers: { Cookie: session.cookie }
+      })
 
-    const data = await response.json() as any[]
-    const assignments: Assignment[] = data.map(a => ({
-        assignmentName: a.assignmentName,
-        objectSectionID: a.objectSectionID,
-        sectionID: a.sectionID,
-        dueDate: a.dueDate,
-        assignedDate: a.assignedDate,
-        scoreModifiedDate: a.scoreModifiedDate,
-        scorePoints: a.scorePoints,
-        score: a.score,
-        scorePercentage: a.scorePercentage,
-        totalPoints: a.totalPoints,
-        comments: a.comments,
-        feedback: a.feedback
-    }))
+      if (response.status !== 200) {
+          return c.json({ ok: false, message: response.statusText }, response.status as ContentfulStatusCode)
+      }
 
-    return c.json({ ok: true, assignments })
-})
+      const data = await response.json()
+      const detail: AssignmentDetail = {
+          curriculumAlignmentID: data.curriculumAlignmentID,
+          sectionID: data.sectionID,
+          startDate: data.startDate,
+          endDate: data.endDate,
+          active: data.active,
+          objectID: data.objectID,
+          notGraded: data.notGraded,
+          modifiedDate: data.modifiedDate,
+          releaseScoresTimeStamp: data.releaseScoresTimeStamp,
+          gradingAlignments: data.gradingAlignments,
+          curriculumContent: data.curriculumContent,
+          submissions: data.submissions,
+          scores: data.scores,
+          hasRubricScores: data.hasRubricScores
+      }
 
-ic.get('/assignments/:objectSectionID', async (c) => {
-    const session = c.get('session')
-    const objectSectionID = c.req.param('objectSectionID')
-    const response = await fetch(`https://${session.baseURL}/api/instruction/curriculum/section/content/${objectSectionID}?personID=${session.personID}`, {
-        headers: { Cookie: session.cookie }
-    })
-
-    if (response.status !== 200) {
-        return c.json({ ok: false, message: response.statusText }, response.status as ContentfulStatusCode)
-    }
-
-    const data = await response.json()
-    const detail: AssignmentDetail = {
-        curriculumAlignmentID: data.curriculumAlignmentID,
-        sectionID: data.sectionID,
-        startDate: data.startDate,
-        endDate: data.endDate,
-        active: data.active,
-        objectID: data.objectID,
-        notGraded: data.notGraded,
-        modifiedDate: data.modifiedDate,
-        releaseScoresTimeStamp: data.releaseScoresTimeStamp,
-        gradingAlignments: data.gradingAlignments,
-        curriculumContent: data.curriculumContent,
-        submissions: data.submissions,
-        scores: data.scores,
-        hasRubricScores: data.hasRubricScores
-    }
-
-    return c.json({ ok: true, detail })
-})
+      return c.json(detail)
+  })
 export default ic
+
+//export type ICType = typeof ic
