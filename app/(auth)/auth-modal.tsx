@@ -86,7 +86,7 @@ export default function AuthModal() {
       const model = DeviceInfo.getModel();
       const deviceType = DeviceInfo.getDeviceType();
       const systemVersion = DeviceInfo.getSystemVersion();
-//fix: sanRamon hardcoded?
+
       const script = `
         (function() {            
             const formData = new URLSearchParams({

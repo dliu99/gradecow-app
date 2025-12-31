@@ -83,6 +83,40 @@ auth.post('/verify-session', async (c) => {
   const xsrfMatch = storedCookie.match(/XSRF-TOKEN=([^;]+)/)
   const xsrfToken = xsrfMatch ? xsrfMatch[1] : ''
 
+  const appNameMatch = storedCookie.match(/appName=([^;]+)/);
+  if (!appNameMatch) {
+    return c.json({ ok: false, message: 'Missing appName in session cookie' }, 401);
+  }
+  const appName = appNameMatch[1];
+
+
+  let bootstrapRes = await fetch(
+    `https://${baseURL}/mobile/hybridAppUtil.jsp`,
+    {
+      method: "POST",
+      headers: {
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Content-Type": "application/x-www-form-urlencoded",
+        "User-Agent":
+          "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148"
+      },
+      body: new URLSearchParams({
+        appName: appName,
+        deviceID: sessionData.deviceId,
+        deviceModel: sessionData.deviceModel,
+        deviceType: sessionData.deviceType,
+        systemVersion: sessionData.systemVersion,
+        appType: "student",
+        appVersion: "1.11.4",
+        bootstrapped: "1",
+        registrationToken: "null"
+      }).toString(),
+      redirect: "manual"
+    }
+  );
+  const setCookie = bootstrapRes.headers.getSetCookie();
+  const bootstrapCookie = mergeCookies(storedCookie, setCookie);
   const updateResponse = await fetch(`https://${baseURL}/api/campus/hybridDevice/update`, {
     method: 'POST',
     headers: {
@@ -91,7 +125,7 @@ auth.post('/verify-session', async (c) => {
       'Content-Type': 'application/json',
       'Origin': `https://${districtURL}`,
       'Connection': 'keep-alive',
-      'Cookie': `appType=student;campus_hybrid_app=student;deviceID=${sessionData.deviceId};${storedCookie};`,
+      'Cookie': `${bootstrapCookie}`,
       'x-xsrf-token': xsrfToken,
       'Accept-Language': 'en-US,en;q=0.9',
       'User-Agent': 'StudentApp/1.11.4 Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
@@ -158,7 +192,7 @@ auth.post('/verify-session', async (c) => {
   })
 })
 
-auth.post('/updateDevice', async (c) => {
+auth.post('/updateDevice', async (c) => {//initial login step
   const res = await c.req.json()
   const schema = z.object({
     cookieHeader: z.string(),
