@@ -9,6 +9,27 @@ import {
 
 const auth = new Hono()
 
+function mergeCookies(oldCookie: string, setCookieHeaders: string[]): string {
+  const cookieMap = new Map<string, string>();
+
+  oldCookie.split(';').forEach(part => {
+    const trimmed = part.trim();
+    if (!trimmed) return;
+    const [name, ...valueParts] = trimmed.split('=');
+    if (name) cookieMap.set(name, valueParts.join('='));
+  });
+
+  setCookieHeaders.forEach(header => {
+    const firstPart = header.split(';')[0];
+    const [name, ...valueParts] = firstPart.trim().split('=');
+    if (name) cookieMap.set(name, valueParts.join('='));
+  });
+
+  return Array.from(cookieMap.entries())
+    .map(([name, value]) => `${name}=${value}`)
+    .join('; ');
+}
+
 interface SessionData {
   cookie: string
   baseURL: string
@@ -16,6 +37,7 @@ interface SessionData {
   deviceModel: string
   deviceType: string
   systemVersion: string
+  personID: number
 }
 
 auth.get('/', (c) => {
@@ -58,30 +80,6 @@ auth.post('/verify-session', async (c) => {
   const baseURL = sessionData.baseURL
   const districtURL = baseURL.replace('/campus', '')
 
-  const verifyResponse = await fetch(`https://${baseURL}/resources/my/userAccount`, {
-    headers: {
-      'Accept': 'application/json, text/plain, */*',
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-      'User-Agent': 'gradecow/1.0 Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
-      'Cookie': storedCookie
-    }
-  })
-
-  if (verifyResponse.status !== 200) {
-    console.log('Session verification failed', verifyResponse.status, verifyResponse.statusText)
-    return c.json({ ok: false, message: 'Session expired or invalid' }, 401)
-  }
-
-  const userData = await verifyResponse.json() as { personID: number }
-  const personID = userData.personID
-
-  if (!personID) {
-    console.log('No personID found in user data')
-    return c.json({ ok: false, message: 'Failed to get user information' }, 401)
-  }
-
   const xsrfMatch = storedCookie.match(/XSRF-TOKEN=([^;]+)/)
   const xsrfToken = xsrfMatch ? xsrfMatch[1] : ''
 
@@ -113,9 +111,33 @@ auth.post('/verify-session', async (c) => {
     console.log('Device update failed', updateResponse.status)
     return c.json({ ok: false, message: 'Failed to refresh device registration' }, updateResponse.status as ContentfulStatusCode)
   }
+  console.log('did not fail!!! initial verify step')
+  const updatedCookie = mergeCookies(storedCookie, updateResponse.headers.getSetCookie())
 
-  const setCookieHeader = updateResponse.headers.getSetCookie().join('; ')
-  const updatedCookie = storedCookie + ';' + setCookieHeader
+  const verifyResponse = await fetch(`https://${baseURL}/resources/my/userAccount`, {
+    headers: {
+      'Accept': 'application/json, text/plain, */*',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'User-Agent': 'gradecow/1.0 Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
+      'Cookie': updatedCookie
+    }
+  })
+
+  if (verifyResponse.status !== 200) {
+    console.log('Session verification failed', verifyResponse.status, verifyResponse.statusText)
+    //return c.json({ ok: false, message: 'Session expired or invalid' }, 401)
+  }
+
+  const userData = await verifyResponse.json() as { personID: number }
+  const personID = userData.personID
+
+  if (!personID) {
+    console.log('No personID found in user data')
+    //return c.json({ ok: false, message: 'Failed to get user information' }, 401)
+  }
+
 
   const newSessionToken = await sealSessionData({ 
     cookie: updatedCookie,
@@ -124,6 +146,7 @@ auth.post('/verify-session', async (c) => {
     deviceModel: sessionData.deviceModel,
     deviceType: sessionData.deviceType,
     systemVersion: sessionData.systemVersion,
+    personID: personID,
   })
 
   await createICSession(personID, newSessionToken)
@@ -208,9 +231,8 @@ auth.post('/updateDevice', async (c) => {
     return c.json({ ok: false, message: response.statusText }, response.status as ContentfulStatusCode)
   }
 
-  const setCookieHeader = response.headers.getSetCookie().join('; ');
-  const fullCookie = cookieHeader + ';' + setCookieHeader;
-  console.log('Full cookie to store:', fullCookie);
+  const fullCookie = mergeCookies(cookieHeader, response.headers.getSetCookie());
+  console.log('Full cookie to seal:', fullCookie);
 
   const sessionToken = await sealSessionData({ 
     cookie: fullCookie,
@@ -219,6 +241,7 @@ auth.post('/updateDevice', async (c) => {
     deviceModel,
     deviceType,
     systemVersion,
+    personID: personID,
   });
 
   const sessionPersonId = await createICSession(personID, sessionToken);

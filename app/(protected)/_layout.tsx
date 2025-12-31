@@ -42,7 +42,7 @@ export default function ProtectedLayout() {
     <NativeTabs>
       <NativeTabs.Trigger name="dashboard">
         <Label hidden>Dashboard</Label>
-        <Icon sf="calendar.circle" drawable="custom_android_drawable" />
+        <Icon sf="calendar" drawable="custom_android_drawable" />
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="grades">
         <Label hidden>Grades</Label>
