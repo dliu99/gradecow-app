@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 export default function Home() {
   const sentences = [
     ' stay on top of every assignment',
-    ' see your grades update in real time',
+    ' see your grades at a glance',
     ' get gentle reminders before due dates hit',
     ' keep everything organized in one place',
   ];
@@ -67,8 +67,8 @@ export default function Home() {
         </View>
         <View className="w-full items-center">
           <Link href="/school-select" asChild>
-            <Button title="Sign in with Infinite Campus" className="w-full bg-slate-100 items-left">
-            <Text className="text-slate-950 text-lg font-semibold text-left">Sign in with Infinite Campus</Text>
+            <Button title="Sign in with Infinite Campus" className="w-full h-16 bg-slate-100 items-left">
+            <Text className="text-slate-950 text-lg font-semibold text-center justify-center">Sign in with Infinite Campus</Text>
             </Button>
           </Link>
         </View>
