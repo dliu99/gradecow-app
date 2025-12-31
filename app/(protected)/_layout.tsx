@@ -42,13 +42,13 @@ export default function ProtectedLayout() {
     <NativeTabs>
       <NativeTabs.Trigger name="dashboard">
         <Label hidden>Dashboard</Label>
-        <Icon sf="calendar" drawable="custom_android_drawable" />
+        <Icon sf="house" drawable="custom_android_drawable" />//todo: badges with new assignments
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="grades">
         <Label hidden>Grades</Label>
         <Icon sf="chart.bar" drawable="custom_android_drawable" />
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="profile">
+      <NativeTabs.Trigger name="profile" role="search">
         <Label hidden>Profile</Label>
         <Icon sf="person.crop.circle" drawable="custom_android_drawable" />
       </NativeTabs.Trigger>
