@@ -17,7 +17,7 @@ export default function AuthModal() {
   const deviceID = uuidv4();
 
   const handleNavigationStateChange = async (navState: any) => {
-    if (navState.url.includes('nav-wrapper/student/portal/student/home')) {
+    if (navState.url.includes('nav-wrapper')) {
       try {
         const cookies = await CookieManager.get(navState.url, true);
         const cookieHeader = Object.entries(cookies)
