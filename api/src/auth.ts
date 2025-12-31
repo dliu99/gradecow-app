@@ -78,10 +78,7 @@ auth.post('/verify-session', async (c) => {
   }
 
   const baseURL = sessionData.baseURL
-  const districtURL = baseURL.replace('/campus', '')
-
-  const xsrfMatch = storedCookie.match(/XSRF-TOKEN=([^;]+)/)
-  const xsrfToken = xsrfMatch ? xsrfMatch[1] : ''
+  const districtURL = baseURL.split('/')[0]
 
   const appNameMatch = storedCookie.match(/appName=([^;]+)/);
   if (!appNameMatch) {
@@ -89,6 +86,7 @@ auth.post('/verify-session', async (c) => {
   }
   const appName = appNameMatch[1];
 
+  const cookieForBootstrap = `appType=student;campus_hybrid_app=student;deviceID=${sessionData.deviceId};${storedCookie};`
 
   let bootstrapRes = await fetch(
     `https://${baseURL}/mobile/hybridAppUtil.jsp`,
@@ -98,6 +96,7 @@ auth.post('/verify-session', async (c) => {
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
         "Content-Type": "application/x-www-form-urlencoded",
+        "Cookie": cookieForBootstrap,
         "User-Agent":
           "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148"
       },
@@ -115,8 +114,11 @@ auth.post('/verify-session', async (c) => {
       redirect: "manual"
     }
   );
-  const setCookie = bootstrapRes.headers.getSetCookie();
-  const bootstrapCookie = mergeCookies(storedCookie, setCookie);
+  
+  const setCookie = bootstrapRes.headers.getSetCookie() ?? [];
+  const bootstrapCookie = mergeCookies(cookieForBootstrap, setCookie);
+  const xsrfMatch = bootstrapCookie.match(/XSRF-TOKEN=([^;]+)/)
+  const xsrfToken = xsrfMatch ? xsrfMatch[1] : ''
   const updateResponse = await fetch(`https://${baseURL}/api/campus/hybridDevice/update`, {
     method: 'POST',
     headers: {
@@ -125,7 +127,7 @@ auth.post('/verify-session', async (c) => {
       'Content-Type': 'application/json',
       'Origin': `https://${districtURL}`,
       'Connection': 'keep-alive',
-      'Cookie': `${bootstrapCookie}`,
+      'Cookie': bootstrapCookie,
       'x-xsrf-token': xsrfToken,
       'Accept-Language': 'en-US,en;q=0.9',
       'User-Agent': 'StudentApp/1.11.4 Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
@@ -145,8 +147,7 @@ auth.post('/verify-session', async (c) => {
     console.log('Device update failed', updateResponse.status)
     return c.json({ ok: false, message: 'Failed to refresh device registration' }, updateResponse.status as ContentfulStatusCode)
   }
-  console.log('did not fail!!! initial verify step')
-  const updatedCookie = mergeCookies(storedCookie, updateResponse.headers.getSetCookie())
+  const updatedCookie = mergeCookies(bootstrapCookie, updateResponse.headers.getSetCookie() ?? [])
 
   const verifyResponse = await fetch(`https://${baseURL}/resources/my/userAccount`, {
     headers: {
