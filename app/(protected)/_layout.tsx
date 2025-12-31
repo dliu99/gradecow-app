@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Redirect, Stack } from "expo-router";
+import { Redirect, Stack, Slot } from "expo-router";
 import { View, ActivityIndicator } from "react-native";
 import { getAuthSession, verifyAndRefreshAuth } from "../../utils/storage";
+import { NativeTabs, Icon, Label } from 'expo-router/unstable-native-tabs';
 
 export default function ProtectedLayout() {
   const [isLoading, setIsLoading] = useState(true);
@@ -38,8 +39,19 @@ export default function ProtectedLayout() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(tabs)" />
-    </Stack>
+    <NativeTabs>
+      <NativeTabs.Trigger name="dashboard">
+        <Label hidden>Dashboard</Label>
+        <Icon sf="calendar.circle" drawable="custom_android_drawable" />
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="grades">
+        <Label hidden>Grades</Label>
+        <Icon sf="chart.bar" drawable="custom_android_drawable" />
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="profile">
+        <Label hidden>Profile</Label>
+        <Icon sf="person.crop.circle" drawable="custom_android_drawable" />
+      </NativeTabs.Trigger>
+    </NativeTabs>
   );
 }
