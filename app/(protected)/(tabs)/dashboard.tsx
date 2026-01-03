@@ -99,10 +99,12 @@ function AssignmentSection({
   assignments,
   today,
   courseNameMap,
+  sectionTitle,
 }: {
   assignments: Assignment[]
   today: dayjs.Dayjs
   courseNameMap: Map<number, string>
+  sectionTitle?: string
 }) {
   if (assignments.length === 0) return null
 
@@ -113,15 +115,22 @@ function AssignmentSection({
     byDate.get(dateKey)!.push(a)
   }
 
+  const showSectionTitle = sectionTitle !== undefined
+
   return (
-    <>
-    
+    <View className="">
+      {showSectionTitle && (
+        <Text className="text-white text-3xl font-bold">{sectionTitle}</Text>
+      )}
+
       {Array.from(byDate.entries()).map(([dateKey, dateAssignments]) => {
         const date = dayjs(dateKey)
         const { title, subtitle } = formatDateHeader(date, today)
         return (
-          <View key={dateKey} className="mb-6">
-            <Text className="text-white text-3xl font-bold">{title}</Text>
+          <View key={dateKey} className="mb-1">
+            {!showSectionTitle && (
+              <Text className="text-white text-3xl font-bold">{title}</Text>
+            )}
             <Text className="text-stone-500 text-xl font-semibold mt-1 mb-3">{subtitle}</Text>
             {dateAssignments.map((assignment) => (
               <AssignmentCard
@@ -134,7 +143,7 @@ function AssignmentSection({
           </View>
         )
       })}
-    </>
+    </View>
   )
 }
 
@@ -166,7 +175,10 @@ export default function Dashboard() {
   const weekStats = useMemo(() => {
     if (!assignments) return { total: 0, busiestCourse: '' }
 
-    const weekEnd = today.endOf('week')
+    const dayOfWeek = today.day()
+    const daysUntilFriday = (5 - dayOfWeek + 7) % 7
+    const weekEnd = today.add(daysUntilFriday, 'day').endOf('day')
+
     const weekAssignments = assignments.filter((a) => {
       const dueDate = dayjs(a.dueDate)
       return dueDate.isValid() && dueDate.isBefore(weekEnd) && dueDate.isAfter(today.subtract(1, 'day'))
@@ -233,10 +245,11 @@ export default function Dashboard() {
               assignments={grouped.upcoming}
               today={today}
               courseNameMap={courseNameMap}
+              sectionTitle="Upcoming"
             />
             {grouped.beyond.length > 0 && (
               <Link href="/(protected)/see-all" asChild>
-                <TouchableOpacity className="bg-stone-800 rounded-2xl py-5 px-6 -mt-6 mb-10 flex-row items-center justify-between">
+                <TouchableOpacity className="bg-stone-800 rounded-2xl py-5 px-6  mb-10 flex-row items-center justify-between">
                   <Text className="text-white text-base font-medium">
                     See all assignments ({grouped.beyond.length} more)
                   </Text>
