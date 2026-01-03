@@ -86,7 +86,7 @@ export function AssignmentCard({ assignment, courseName, compact, now }: Assignm
             </Text>
           )}
           {assignment.totalPoints && (
-            <Text className="text-stone-500 text-base mt-1">{assignment.totalPoints} pts • <Text className="text-green-500 text-base">{relativeTime}</Text></Text>
+            <Text className="text-stone-500 text-base mt-1">{assignment.totalPoints} pts • <Text className="text-green-500 text-base">{relativeTime} <Text className="text-stone-500 text-base">@ {dueDate.format('h:mm A')}</Text></Text></Text>
           )}
         </View>
         <View className="items-center justify-center">

@@ -88,7 +88,7 @@ export default function AssignmentModal() {
 <View className="bg-stone-800 rounded-2xl p-5 mb-4">
   <View className="flex-row items-center justify-between mb-2">
     <Text className="text-white text-xl font-bold">Due</Text>
-    <Text className="text-green-400 text-lg font-semibold">in 2 days</Text>
+    <Text className="text-green-400 text-lg font-semibold">in {endDate?.startOf('day').diff(dayjs().startOf('day'), 'day') ?? "-"} days</Text>
   </View>
   <Text className="text-stone-300 text-lg font-semibold">
     {endDate ? endDate.format('dddd, MMM D') : '—'}
