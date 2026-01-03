@@ -36,12 +36,14 @@ export type Term = {
 }
 
 export type Enrollment = {
+  enrollmentID: number
   terms: Term[]
 }
 
 export type ExtractedCourse = {
   courseName: string
   sectionID: number
+  enrollmentID: number
   score: string | undefined
   percent: number | undefined
   termName: string
@@ -96,4 +98,88 @@ export type userAccount = {
 
 export type UserProfile = {
   gpa: { uw: string | null; w: string | null } | null
+}
+
+export type CourseGradeTerm = {
+  calendarID: number
+  termID: number
+  termName: string
+  termScheduleID: number
+  termScheduleName: string
+  termSeq: number
+  isPrimary: boolean
+  startDate: string
+  endDate: string
+}
+
+export type CourseGradeAssignment = {
+  objectSectionID: number
+  assignmentName: string
+  sectionID: number
+  dueDate: string
+  assignedDate: string
+  scoreModifiedDate: string | null
+  termIDs: number[]
+  score: string | null
+  scorePoints: string | null
+  scorePercentage: string | null
+  totalPoints: number
+  comments: string | null
+  feedback: string | null
+  late: boolean | null
+  missing: boolean | null
+  dropped: boolean | null
+  incomplete: boolean | null
+  turnedIn: boolean | null
+  notGraded: boolean
+  multiplier: number
+}
+
+export type CategoryProgress = {
+  progressScore: string | null
+  progressPercent: number | null
+  progressPointsEarned: number | null
+  progressTotalPoints: number | null
+}
+
+export type CourseGradeCategory = {
+  groupID: number
+  name: string
+  weight: number
+  assignments: CourseGradeAssignment[]
+  progress: CategoryProgress | null
+}
+
+export type CourseGradeTask = {
+  taskID: number
+  taskName: string
+  termID: number
+  termName: string
+  termSeq: number
+  courseName: string
+  sectionID: number
+  score: string | null
+  percent: number | null
+  progressScore: string | null
+  progressPercent: number | null
+  progressPointsEarned: number | null
+  progressTotalPoints: number | null
+  comments: string | null
+  hasAssignments: boolean
+  hasDetail: boolean
+  groupWeighted: boolean
+}
+
+export type CourseGradeDetailResponse = {
+  task: CourseGradeTask
+  categories: CourseGradeCategory[]
+}
+
+export type CourseGradeAPIResponse = {
+  terms: CourseGradeTerm[]
+  details: Array<{
+    task: any
+    categories: any[]
+    children: any
+  }>
 }
