@@ -222,7 +222,7 @@ export default function Dashboard() {
             {getGreeting(user?.firstName ?? '')}
           </Text>
           <Text className="text-stone-500 text-lg font-semibold mt-2">
-            {weekStats.total > 0 ? `You have ${weekStats.total} assignments left this week, with your busiest class being <Text className="text-green-500">${weekStats.busiestCourse.replace('.','')}</Text>.` : 'You have no assignments this week!'}
+            {weekStats.total > 0 ? <Text>You have {weekStats.total} assignment(s) left this week, with your busiest class being <Text className="text-green-400">{weekStats.busiestCourse.replace('.','')}</Text>.</Text> : 'You have no assignments this week!'}
           </Text>
         </View>
         <AssignmentHeatmap
