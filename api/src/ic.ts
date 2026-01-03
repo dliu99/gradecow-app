@@ -50,7 +50,7 @@ const ic = new Hono<{ Variables: Variables }>()
   .use(async (c, next) => {
       const sessionToken = c.req.header('Authorization')
       if (!sessionToken) {
-          return c.json({ ok: false, message: 'Unauthorized' }, 401)
+          return c.json({ ok: false, message: 'Unauthorized, no session' }, 401)
       }
       try {
           const session = await Iron.unseal(sessionToken, ironKey, Iron.defaults)
@@ -105,7 +105,7 @@ const ic = new Hono<{ Variables: Variables }>()
       })
 
       if (response.status !== 200) {
-          return c.json(response.statusText, response.status as ContentfulStatusCode)
+          return c.json('IC error: '+response.statusText, response.status as ContentfulStatusCode)
       }
 
       const data = await response.json() as Enrollment[]
