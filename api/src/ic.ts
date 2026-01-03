@@ -1,7 +1,7 @@
 import { Hono } from "hono"
 import { ContentfulStatusCode } from "hono/utils/http-status"
 import * as Iron from 'iron-webcrypto'
-import { Session, Variables, Enrollment, ExtractedCourse, Assignment, AssignmentDetail } from './types'
+import { Session, Variables, Enrollment, ExtractedCourse, Assignment, AssignmentDetail, userAccount, UserProfile } from './types'
 const ironKey = process.env.IRON_KEY as string
 
 
@@ -60,14 +60,46 @@ const ic = new Hono<{ Variables: Variables }>()
       }
       await next()
   })
-  .get('/', async (c) => {
-      return c.json({ ok: true, session: c.get('session') })
+  .get('/user', async (c) => {
+    const session = c.get('session')
+    const baseUrl = session.baseURL
+    const response = await fetch(`https://${baseUrl}/resources/my/userAccount`, {
+      headers: {
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'User-Agent': 'StudentApp/1.11.4 Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
+        'Cookie': session.cookie
+      }
+    })
+    const data = await response.json() as userAccount
+    return c.json(data)
+  })
+  .get('/user/profile', async (c) => {
+    const session = c.get('session')
+    const baseUrl = session.baseURL
+
+    type GpaEntry = { type: string; gpa: string; unweighted: boolean }
+
+    const gpaRes = await fetch(`https://${baseUrl}/api/campus/grading/gpas/my/gpa`, {
+      headers: { Cookie: session.cookie }
+    })
+
+    let gpa: UserProfile['gpa'] = null
+    if (gpaRes.ok) {
+      const gpaData = await gpaRes.json() as GpaEntry[]
+      const cumulative = gpaData.filter(g => g.type === 'Cumulative')
+      const uw = cumulative.find(g => g.unweighted)?.gpa ?? null
+      const w = cumulative.find(g => !g.unweighted)?.gpa ?? null
+      if (uw || w) gpa = { uw, w }
+    }
+
+    return c.json({ gpa } satisfies UserProfile)
   })
   .get('/courseGrades', async (c) => {
       const session = c.get('session')
       const baseUrl = session.baseURL
-      console.log(session.cookie)
-      console.log(`https://${baseUrl}/resources/portal/grades`)
       const response = await fetch(`https://${baseUrl}/resources/portal/grades`, {
           headers: { Cookie: session.cookie }
       })
@@ -87,6 +119,7 @@ const ic = new Hono<{ Variables: Variables }>()
       })
 
       if (response.status !== 200) {
+        console.log('Failed to get assignments', response.statusText)
           return c.json({ ok: false, message: response.statusText }, response.status as ContentfulStatusCode)
       }
 
@@ -105,8 +138,8 @@ const ic = new Hono<{ Variables: Variables }>()
           comments: a.comments,
           feedback: a.feedback
       }))
-
-      return c.json(assignments)
+console.log('fetched assignments')
+return c.json(assignments)
   })
 
   .get('/assignments/:objectSectionID', async (c) => {

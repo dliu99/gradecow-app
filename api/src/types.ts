@@ -78,10 +78,22 @@ export type AssignmentDetail = {
     objectID: number
     name: string
     type: number
-    description: string | null
+    description: { blobID: string; content: string; skipSanitize: boolean } | null
     curriculumBlocks: any[]
   }
   submissions: any[]
   scores: any[]
   hasRubricScores: boolean
+}
+
+export type userAccount = {
+  personID: number
+  username: string
+  firstName: string
+  lastName: string
+  homepage: string
+}
+
+export type UserProfile = {
+  gpa: { uw: string | null; w: string | null } | null
 }
