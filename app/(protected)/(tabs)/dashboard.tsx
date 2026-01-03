@@ -1,0 +1,252 @@
+import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
+import { Link } from 'expo-router'
+import { useAllAssignments, useGrades, useUser } from '@/hooks/use-ic'
+import { AssignmentCard } from '@/components/AssignmentCard'
+import { AssignmentHeatmap } from '@/components/AssignmentHeatmap'
+import { Assignment } from '@/api/src/types'
+import { useMemo } from 'react'
+import dayjs from 'dayjs'
+
+const GREETINGS = {
+  morning: [
+    'Good morning, {name}',
+    'Rise and shine, {name}',
+  ],
+  afternoon: [
+    'Good afternoon, {name}',
+  ],
+  evening: [
+    'Good evening, {name}',
+  ],
+  night: [
+    'Still up, {name}?',
+    'Good evening, {name}',
+    'Working late, {name}?',
+    'Late night, {name}?',
+  ],
+}
+
+function getTimeOfDay(hour: number): keyof typeof GREETINGS {
+  if (hour >= 5 && hour < 12) return 'morning'
+  if (hour >= 12 && hour < 17) return 'afternoon'
+  if (hour >= 17 && hour < 21) return 'evening'
+  return 'night'
+}
+
+function getGreeting(name: string): string {
+  const hour = new Date().getHours()
+  const timeOfDay = getTimeOfDay(hour)
+  const greetings = GREETINGS[timeOfDay]
+  const greeting = greetings[Math.floor(Math.random() * greetings.length)]
+  return greeting.replace('{name}', name)
+}
+
+
+type GroupedAssignments = {
+  today: Assignment[]
+  upcoming: Assignment[]
+  beyond: Assignment[]
+}
+
+function formatDateHeader(date: dayjs.Dayjs, today: dayjs.Dayjs): { title: string; subtitle: string } {
+  const days = date.startOf('day').diff(today.startOf('day'), 'day')
+  const dayName = date.format('dddd')
+  const monthDay = date.format('MMMM D')
+
+  if (days === 0) {
+    return { title: 'Today', subtitle: `${dayName}, ${monthDay}` }
+  }
+
+  const subtitle = `${dayName}, ${monthDay}`
+
+  return { title: 'Upcoming', subtitle }
+}
+
+function groupAssignments(assignments: Assignment[], today: dayjs.Dayjs): GroupedAssignments {
+  const todayStart = today.startOf('day')
+  const twoWeeksFromNow = todayStart.add(14, 'day')
+
+  const filtered = assignments.filter((a) => {
+    const dueDate = dayjs(a.dueDate)
+    const isValid = dueDate.isValid()
+    const isFuture = dueDate.startOf('day').isSame(todayStart) || dueDate.isAfter(todayStart)
+    return isValid && isFuture
+  })
+
+
+  const sorted = filtered.sort((a, b) => dayjs(a.dueDate).valueOf() - dayjs(b.dueDate).valueOf())
+
+  const grouped: GroupedAssignments = { today: [], upcoming: [], beyond: [] }
+
+  for (const assignment of sorted) {
+    const dueDate = dayjs(assignment.dueDate).startOf('day')
+    const days = dueDate.diff(todayStart, 'day')
+
+    if (days === 0) {
+      grouped.today.push(assignment)
+    } else if (dueDate.isBefore(twoWeeksFromNow)) {
+      grouped.upcoming.push(assignment)
+    } else {
+      grouped.beyond.push(assignment)
+    }
+  }
+
+  return grouped
+}
+
+function AssignmentSection({
+  assignments,
+  today,
+  courseNameMap,
+}: {
+  assignments: Assignment[]
+  today: dayjs.Dayjs
+  courseNameMap: Map<number, string>
+}) {
+  if (assignments.length === 0) return null
+
+  const byDate = new Map<string, Assignment[]>()
+  for (const a of assignments) {
+    const dateKey = dayjs(a.dueDate).startOf('day').format('YYYY-MM-DD')
+    if (!byDate.has(dateKey)) byDate.set(dateKey, [])
+    byDate.get(dateKey)!.push(a)
+  }
+
+  return (
+    <>
+    
+      {Array.from(byDate.entries()).map(([dateKey, dateAssignments]) => {
+        const date = dayjs(dateKey)
+        const { title, subtitle } = formatDateHeader(date, today)
+        return (
+          <View key={dateKey} className="mb-6">
+            <Text className="text-white text-3xl font-bold">{title}</Text>
+            <Text className="text-stone-500 text-xl font-semibold mt-1 mb-3">{subtitle}</Text>
+            {dateAssignments.map((assignment) => (
+              <AssignmentCard
+                key={`${assignment.objectSectionID}-${assignment.assignmentName}`}
+                assignment={assignment}
+                courseName={courseNameMap.get(assignment.sectionID)}
+                now={today}
+              />
+            ))}
+          </View>
+        )
+      })}
+    </>
+  )
+}
+
+export default function Dashboard() {
+  const { data: assignments, isLoading: assignmentsLoading, error: assignmentsError } = useAllAssignments()
+  const { data: grades, isLoading: gradesLoading, error: gradesError } = useGrades()
+  const { data: user, isLoading: userLoading, error: userError } = useUser()
+
+  console.log('[Dashboard] Data - assignments:', assignments?.length ?? 'null', 'grades:', grades?.length ?? 'null')
+
+
+  const courseNameMap = useMemo(() => {
+    const map = new Map<number, string>()
+    if (grades) {
+      for (const course of grades) {
+        map.set(course.sectionID, course.courseName)
+      }
+    }
+    return map
+  }, [grades])
+
+  const today = useMemo(() => dayjs(), [])
+
+  const grouped = useMemo(() => {
+    if (!assignments) return { today: [], upcoming: [], beyond: [] }
+    return groupAssignments(assignments, today)
+  }, [assignments, today])
+
+  const weekStats = useMemo(() => {
+    if (!assignments) return { total: 0, busiestCourse: '' }
+
+    const weekEnd = today.endOf('week')
+    const weekAssignments = assignments.filter((a) => {
+      const dueDate = dayjs(a.dueDate)
+      return dueDate.isValid() && dueDate.isBefore(weekEnd) && dueDate.isAfter(today.subtract(1, 'day'))
+    })
+
+    const courseCounts = new Map<string, number>()
+    for (const assignment of weekAssignments) {
+      const courseName = courseNameMap.get(assignment.sectionID) || 'Unknown Course'
+      courseCounts.set(courseName, (courseCounts.get(courseName) || 0) + 1)
+    }
+
+    let busiestCourse = ''
+    let maxCount = 0
+    for (const [course, count] of courseCounts) {
+      if (count > maxCount) {
+        maxCount = count
+        busiestCourse = course
+      }
+    }
+
+    return { total: weekAssignments.length, busiestCourse }
+  }, [assignments, today, courseNameMap])
+
+  const isLoading = assignmentsLoading || gradesLoading
+
+  if (isLoading) {
+    return (
+      <SafeAreaView className="flex-1 bg-neutral-900 items-center justify-center">
+        <ActivityIndicator size="large" color="#fff" />
+      </SafeAreaView>
+    )
+  }
+
+  const hasAssignments = grouped.today.length > 0 || grouped.upcoming.length > 0
+
+  return (
+    <SafeAreaView className="flex-1 bg-neutral-900" edges={['top']}>
+      <ScrollView className="flex-1 px-4 pt-8">
+        <View className="mb-6">
+          <Text className="text-white text-4xl font-bold">
+            {getGreeting(user?.firstName ?? '')}
+          </Text>
+          <Text className="text-stone-500 text-lg font-semibold mt-2">
+            {weekStats.total > 0 ? `You have ${weekStats.total} assignments left this week, with your busiest class being <Text className="text-green-500">${weekStats.busiestCourse.replace('.','')}</Text>.` : 'You have no assignments this week!'}
+          </Text>
+        </View>
+        <AssignmentHeatmap
+          assignments={assignments ?? []}
+          courseNameMap={courseNameMap}
+          currentDate={today}
+        />
+        {!hasAssignments ? (
+          <View className="flex-1 items-center justify-center pt-20">
+            <Text className="text-white text-xl font-medium">You have no assignments! 🎉</Text>
+          </View>
+        ) : (
+          <>
+            <AssignmentSection
+              assignments={grouped.today}
+              today={today}
+              courseNameMap={courseNameMap}
+            />
+            <AssignmentSection
+              assignments={grouped.upcoming}
+              today={today}
+              courseNameMap={courseNameMap}
+            />
+            {grouped.beyond.length > 0 && (
+              <Link href="/(protected)/see-all" asChild>
+                <TouchableOpacity className="bg-stone-800 rounded-2xl py-5 px-6 -mt-6 mb-10 flex-row items-center justify-between">
+                  <Text className="text-white text-base font-medium">
+                    See all assignments ({grouped.beyond.length} more)
+                  </Text>
+                  <Text className="text-stone-400 text-xl">→</Text>
+                </TouchableOpacity>
+              </Link>
+            )}
+          </>
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  )
+}

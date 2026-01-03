@@ -25,7 +25,7 @@ export default function Index() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-teal-950">
+      <View className="flex-1 items-center justify-center bg-neutral-900">
         <ActivityIndicator size="large" color="#fff" />
       </View>
     );

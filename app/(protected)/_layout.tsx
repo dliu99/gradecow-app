@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
-import { Redirect, Stack, Slot } from "expo-router";
+import { Redirect, Stack, Slot, Tabs, usePathname } from "expo-router";
 import { View, ActivityIndicator } from "react-native";
 import { getAuthSession, verifyAndRefreshAuth } from "../../utils/storage";
-import { NativeTabs, Icon, Label } from 'expo-router/unstable-native-tabs';
-
+import { Icon, Label } from "expo-router/unstable-native-tabs";
+import { NativeTabs } from "expo-router/unstable-native-tabs";
 export default function ProtectedLayout() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -28,7 +29,7 @@ export default function ProtectedLayout() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-teal-950">
+      <View className="flex-1 items-center justify-center bg-neutral-900">
         <ActivityIndicator size="large" color="#fff" />
       </View>
     );
@@ -37,21 +38,11 @@ export default function ProtectedLayout() {
   if (!isAuthenticated) {
     return <Redirect href="/(auth)/onboarding" />;
   }
-
   return (
-    <NativeTabs>
-      <NativeTabs.Trigger name="dashboard">
-        <Label hidden>Dashboard</Label>
-        <Icon sf="house" drawable="custom_android_drawable" />//todo: badges with new assignments
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="grades">
-        <Label hidden>Grades</Label>
-        <Icon sf="chart.bar" drawable="custom_android_drawable" />
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="profile" role="search">
-        <Label hidden>Profile</Label>
-        <Icon sf="person.crop.circle" drawable="custom_android_drawable" />
-      </NativeTabs.Trigger>
-    </NativeTabs>
+    <Stack>
+      <Stack.Screen name="see-all" options={{ headerShown: false }}/>
+      <Stack.Screen name="day-modal" options={{ presentation: 'modal', headerShown: true }}/>
+      <Stack.Screen name="(tabs)" options={{ presentation: 'modal', headerShown: false }}/>
+    </Stack>
   );
 }
