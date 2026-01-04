@@ -1,11 +1,11 @@
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native'
+import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Link } from 'expo-router'
 import { useAllAssignments, useGrades, useUser } from '@/hooks/use-ic'
 import { AssignmentCard } from '@/components/AssignmentCard'
 import { AssignmentHeatmap } from '@/components/AssignmentHeatmap'
 import { Assignment } from '@/api/src/types'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import dayjs from 'dayjs'
 
 const GREETINGS = {
@@ -148,9 +148,23 @@ function AssignmentSection({
 }
 
 export default function Dashboard() {
-  const { data: assignments, isLoading: assignmentsLoading, error: assignmentsError } = useAllAssignments()
-  const { data: grades, isLoading: gradesLoading, error: gradesError } = useGrades()
-  const { data: user, isLoading: userLoading, error: userError } = useUser()
+  const [refreshing, setRefreshing] = useState(false)
+  const { data: assignments, isLoading: assignmentsLoading, error: assignmentsError, refetch: refetchAssignments } = useAllAssignments()
+  const { data: grades, isLoading: gradesLoading, error: gradesError, refetch: refetchGrades } = useGrades()
+  const { data: user, isLoading: userLoading, error: userError, refetch: refetchUser } = useUser()
+
+  const onRefresh = async () => {
+    setRefreshing(true)
+    try {
+      await Promise.all([
+        refetchAssignments(),
+        refetchGrades(),
+        refetchUser(),
+      ])
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
   console.log('[Dashboard] Data - assignments:', assignments?.length ?? 'null', 'grades:', grades?.length ?? 'null')
 
@@ -216,7 +230,19 @@ export default function Dashboard() {
 
   return (
     <SafeAreaView className="flex-1 bg-neutral-900" edges={['top']}>
-      <ScrollView className="flex-1 px-4 pt-8">
+      <ScrollView
+        className="flex-1 px-4 pt-8"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="white"
+            title="Refreshing..."
+            titleColor="white"
+            progressBackgroundColor="white"
+          />
+        }
+      >
         <View className="mb-6">
           <Text className="text-white text-4xl font-bold">
             {getGreeting(user?.firstName ?? '')}
@@ -249,7 +275,7 @@ export default function Dashboard() {
             />
             {grouped.beyond.length > 0 && (
               <Link href="/(protected)/see-all" asChild>
-                <TouchableOpacity className="bg-stone-800 rounded-2xl py-5 px-6  mb-10 flex-row items-center justify-between">
+                <TouchableOpacity className="bg-stone-800 rounded-2xl py-5 px-6  mb-36 flex-row items-center justify-between">
                   <Text className="text-white text-base font-medium">
                     See all assignments ({grouped.beyond.length} more)
                   </Text>
