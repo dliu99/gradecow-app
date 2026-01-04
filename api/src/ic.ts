@@ -116,7 +116,7 @@ const ic = new Hono<{ Variables: Variables }>()
       if (uw || w) gpa = { uw, w }
     }
 
-    return c.json({ gpa } satisfies UserProfile)
+    return c.json({ gpa, absences: null, tardies: null } satisfies UserProfile)
   })
   .get('/courseGrades', async (c) => {
       const session = c.get('session')
@@ -283,6 +283,34 @@ return c.json(assignments)
 
       return c.json(detail)
   })
+  .get('/attendance/:enrollmentID', async (c) => {
+    const session = c.get('session')
+    const enrollmentID = c.req.param('enrollmentID')
+    const response = await fetch(`https://${session.baseURL}/resources/portal/attendance/${enrollmentID}`, {
+      headers: { Cookie: session.cookie }
+    })
+    if (response.status !== 200) {
+      return c.json({ ok: false, message: 'IC error: ' + response.statusText }, response.status as ContentfulStatusCode)
+    }
+    const data = await response.json()
+    // total absences and tardies are the sum across all courses in all terms
+    let absences = 0
+    let tardies = 0
+    if (data && Array.isArray(data.terms)) {
+      for (const term of data.terms) {
+        if (Array.isArray(term.courses)) {
+          for (const course of term.courses) {
+            if (Array.isArray(course.absentList)) {
+              absences += course.absentList.length
+            }
+            if (Array.isArray(course.tardyList)) {
+              tardies += course.tardyList.length
+            }
+          }
+        }
+      }
+    }
+    return c.json({ absences, tardies })
+  })
+  
 export default ic
-
-//export type ICType = typeof ic

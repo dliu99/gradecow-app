@@ -85,16 +85,28 @@ export function useAssignment(objectSectionID: number) {
 }
 
 export function useProfile() {
+  const { data: grades } = useGrades()
+  const enrollmentID = grades?.[0]?.enrollmentID
+
   return useQuery({
-    queryKey: ['ic', 'profile'],
+    queryKey: ['ic', 'profile', enrollmentID],
     queryFn: async () => {
       const client = getClient()
       const res = await client.ic.user.profile.$get()
-      if (res.ok) {
-        return await res.json() as UserProfile
-      } else {
-        throw createApiError(res.statusText, res.status)
+      if (!res.ok) throw createApiError(res.statusText, res.status)
+      
+      const profile = await res.json() as UserProfile
+
+      if (enrollmentID) {
+        const attendanceRes = await client.ic.attendance[':enrollmentID'].$get({
+          param: { enrollmentID: enrollmentID.toString() },
+        })
+        if (attendanceRes.ok) {
+          const attendance = await attendanceRes.json() as { absences: number, tardies: number }
+          return { ...profile, ...attendance }
+        }
       }
+      return { ...profile, absences: null, tardies: null }
     },
   })
 }

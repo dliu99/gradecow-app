@@ -1,8 +1,9 @@
 import { View, Text, ActivityIndicator } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useUser, useProfile } from '@/hooks/use-ic'
+import { UserProfile } from '@/api/src/types'
 
-function GpaCard({ label, value }: { label: string; value: string | null }) {
+function ProfileCard({ label, value }: { label: string; value: string | null }) {
   return (
     <View className="bg-stone-800 rounded-2xl p-5 flex-1">
       <Text className="text-white text-4xl font-bold">{value ?? '—'}</Text>
@@ -33,9 +34,16 @@ export default function Profile() {
         </Text>
 
         {profile?.gpa && (
+          <View className="flex-row gap-4 mb-4">
+            <ProfileCard label="Unweighted GPA" value={profile.gpa.uw} />
+            <ProfileCard label="Weighted GPA" value={profile.gpa.w} />
+            
+          </View>
+        )}
+        {profile?.absences !== null && profile?.tardies !== null && (
           <View className="flex-row gap-4">
-            <GpaCard label="Weighted GPA" value={profile.gpa.w} />
-            <GpaCard label="Unweighted GPA" value={profile.gpa.uw} />
+            <ProfileCard label="Absences" value={profile?.absences?.toString() ?? '—'} />
+            <ProfileCard label="Tardies" value={profile?.tardies?.toString() ?? '—'} />
           </View>
         )}
       </View>

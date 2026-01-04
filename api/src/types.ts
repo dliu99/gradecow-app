@@ -98,6 +98,8 @@ export type userAccount = {
 
 export type UserProfile = {
   gpa: { uw: string | null; w: string | null } | null
+  absences: number | null
+  tardies: number | null
 }
 
 export type CourseGradeTerm = {
