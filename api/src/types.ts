@@ -24,6 +24,7 @@ export type GradingTask = {
 
 export type Course = {
   courseName: string
+  teacherDisplay: string
   sectionID: number
   dropped: boolean
   gradingTasks: GradingTask[]
@@ -42,6 +43,7 @@ export type Enrollment = {
 
 export type ExtractedCourse = {
   courseName: string
+  teacher: string
   sectionID: number
   enrollmentID: number
   score: string | undefined

@@ -51,6 +51,7 @@ const extractCourseGrades = (enrollments: Enrollment[]): ExtractedCourse[] => {
 
         results.push({
           courseName: course.courseName,
+          teacher: course.teacherDisplay,
           sectionID: course.sectionID,
           enrollmentID: enrollment.enrollmentID,
           score: task?.progressScore || task?.score,

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import type { AppType } from '@/api/src'
 import { hc } from 'hono/client'
-import { Assignment, AssignmentDetail, ExtractedCourse, userAccount, UserProfile } from '@/api/src/types'
+import { Assignment, AssignmentDetail, CourseGradeDetailResponse, ExtractedCourse, userAccount, UserProfile } from '@/api/src/types'
 import { getAuthSession } from '@/utils/storage'
 
 function getClient() {
@@ -108,5 +108,38 @@ export function useProfile() {
       }
       return { ...profile, absences: null, tardies: null }
     },
+  })
+}
+
+export function useAllGrades() {
+  return useQuery({
+    queryKey: ['ic', 'courseGrades'],
+    queryFn: async () => {
+      const client = getClient()
+      const res = await client.ic.courseGrades.$get()
+      if (res.ok) {
+        return (await res.json()) as ExtractedCourse[]
+      } else {
+        throw createApiError(res.statusText, res.status)
+      }
+    },
+  })
+}
+
+export function useCourseGrade(sectionID: number) {
+  return useQuery({
+    queryKey: ['ic', 'courseGrade', sectionID],
+    queryFn: async () => {
+      const client = getClient()
+      const res = await client.ic.courseGrades[':sectionID'].$get({
+        param: { sectionID: sectionID.toString() },
+      })
+      if (res.ok) {
+        return await res.json() as CourseGradeDetailResponse
+      } else {
+        throw createApiError(res.statusText, res.status)
+      }
+    },
+    enabled: !!sectionID,
   })
 }
