@@ -41,8 +41,9 @@ export default function ProtectedLayout() {
   return (
     <Stack>
       <Stack.Screen name="see-all" options={{ presentation: 'card', headerShown: false }}/>
-      <Stack.Screen name="day-modal" options={{ presentation: 'card', headerShown: true }}/>
+      <Stack.Screen name="day-modal" options={{ presentation: 'card', headerShown: true, headerBackTitle: 'Dashboard' }}/>
       <Stack.Screen name="assignment-modal" options={{ headerShown: true }}/>
+      <Stack.Screen name="(course)" options={{ presentation: 'modal', headerShown: false }}/>
       <Stack.Screen name="(tabs)" options={{ presentation: 'modal', headerShown: false }}/>
     </Stack>
   );
