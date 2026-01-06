@@ -28,9 +28,10 @@ export default function Profile() {
 
   return (
     <SafeAreaView className="flex-1 bg-neutral-900" edges={['top']}>
-      <View className="flex-1 px-4 pt-8">
-        <Text className="text-white text-4xl font-bold mb-8">
-          {user?.firstName} {user?.lastName}
+      <View className="flex-1 px-5 pt-9">
+        <Text className="text-white text-3xl font-bold mb-4">
+          {/*{user?.firstName} {user?.lastName}*/}
+          Profile
         </Text>
 
         {profile?.gpa && (
