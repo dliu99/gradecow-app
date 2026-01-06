@@ -1,13 +1,15 @@
 import { View, ScrollView } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+//import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router'
 import { useAllAssignments, useGrades } from '@/hooks/use-ic'
 import { AssignmentCard } from '@/components/AssignmentCard'
 import { useMemo } from 'react'
 import dayjs from 'dayjs'
+import { useHeaderHeight } from '@react-navigation/elements'
 
 export default function DayModal() {
   const router = useRouter()
+  const headerHeight = useHeaderHeight()
   const { date } = useLocalSearchParams<{ date: string }>()
   const { data: assignments, isLoading: assignmentsLoading } = useAllAssignments()
   const { data: grades, isLoading: gradesLoading } = useGrades()
@@ -50,8 +52,11 @@ export default function DayModal() {
           headerTitleStyle: { color: '#fff', fontSize: 18, fontWeight: '600' },
         }}
       />
-      <SafeAreaView className="flex-1 bg-neutral-900" edges={['top']}>
-        <ScrollView className="flex-1 px-4 pt-6">
+      <View className="flex-1 bg-neutral-900">
+        <ScrollView 
+          className="flex-1 px-4"
+          contentContainerStyle={{ paddingTop: headerHeight + 20 }}
+        >
           <View className="mb-10">
             {selectedAssignments.map((assignment) => (
               <AssignmentCard
@@ -63,7 +68,7 @@ export default function DayModal() {
             ))}
           </View>
         </ScrollView>
-      </SafeAreaView>
+      </View>
     </>
   )
 }

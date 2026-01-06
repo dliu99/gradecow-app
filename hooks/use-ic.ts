@@ -126,6 +126,34 @@ export function useAllGrades() {
   })
 }
 
+export function useAllGradesWithDetails() {
+  return useQuery({
+    queryKey: ['ic', 'allGradesWithDetails'],
+    queryFn: async () => {
+      const client = getClient()
+      const coursesRes = await client.ic.courseGrades.$get()
+      if (!coursesRes.ok) throw createApiError(coursesRes.statusText, coursesRes.status)
+      
+      const courses = await coursesRes.json() as ExtractedCourse[]
+      
+      const detailsPromises = courses.map(async (course) => {
+        const detailRes = await client.ic.courseGrades[':sectionID'].$get({
+          param: { sectionID: course.sectionID.toString() },
+        })
+        if (!detailRes.ok) return null
+        return await detailRes.json() as CourseGradeDetailResponse
+      })
+      
+      const details = await Promise.all(detailsPromises)
+      const detailsMap = new Map(
+        details.filter(Boolean).map(d => [d!.task.sectionID, d!])
+      )
+      
+      return { courses, detailsMap }
+    },
+  })
+}
+
 export function useCourseGrade(sectionID: number) {
   return useQuery({
     queryKey: ['ic', 'courseGrade', sectionID],

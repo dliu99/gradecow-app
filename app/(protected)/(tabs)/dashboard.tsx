@@ -275,7 +275,7 @@ export default function Dashboard() {
             />
             {grouped.beyond.length > 0 && (
               <Link href="/(protected)/see-all" asChild>
-                <TouchableOpacity className="bg-stone-800 rounded-2xl py-5 px-6  mb-36 flex-row items-center justify-between">
+                <TouchableOpacity className="bg-stone-800 rounded-2xl py-5 px-6  mb-16 flex-row items-center justify-between">
                   <Text className="text-white text-base font-medium">
                     See all assignments ({grouped.beyond.length} more)
                   </Text>
