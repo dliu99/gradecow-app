@@ -72,7 +72,7 @@ interface District {
   state_code: string;
 }
 
-const API_BASE_URL = 'http://localhost:3000';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL!;
 
 export default function SchoolSelect() {
   const menuRef = useRef<MenuComponentRef>(null);

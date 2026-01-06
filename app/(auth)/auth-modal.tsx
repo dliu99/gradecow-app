@@ -26,7 +26,7 @@ export default function AuthModal() {
         
         const districtURL = new URL(navState.url).hostname;
         
-        const authResponse = await fetch('http://localhost:3000/auth/updateDevice', {
+        const authResponse = await fetch(process.env.EXPO_PUBLIC_API_URL!+'/auth/updateDevice', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
