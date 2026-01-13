@@ -53,25 +53,7 @@ export function AssignmentCard({ assignment, courseName, compact, now }: Assignm
     })
   }
 
-  if (compact) {
-    return (
-      <Pressable onPress={handlePress} className="flex-row items-center py-5 px-5 bg-stone-800 rounded-2xl mb-3">
-        <View className="flex-1">
-          <Text className="text-white text-lg font-medium" numberOfLines={1}>
-            {assignment.assignmentName}
-          </Text>
-          <View className="flex-row items-center mt-1.5">
-            {courseName && (
-              <Text className="text-stone-400 text-base" numberOfLines={1}>
-                {courseName}
-              </Text>
-            )}
-          </View>
-        </View>
-        <Ionicons name="chevron-forward" size={22} color="#78716c" />
-      </Pressable>
-    )
-  }
+  
 
   return (
     <Pressable onPress={handlePress} className="bg-stone-800 rounded-2xl p-5 mb-4">

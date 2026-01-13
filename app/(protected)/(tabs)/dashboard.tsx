@@ -274,10 +274,10 @@ export default function Dashboard() {
               sectionTitle="Upcoming"
             />
             {grouped.beyond.length > 0 && (
-              <Link href="/(protected)/see-all" asChild>
+              <Link href="/(protected)/(tabs)/search" asChild>
                 <TouchableOpacity className="bg-stone-800 rounded-2xl py-5 px-6  mb-16 flex-row items-center justify-between">
                   <Text className="text-white text-base font-medium">
-                    See all assignments ({grouped.beyond.length} more)
+                    Search all assignments ({grouped.beyond.length} more)
                   </Text>
                   <Text className="text-stone-400 text-xl">→</Text>
                 </TouchableOpacity>
