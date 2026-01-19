@@ -154,7 +154,13 @@ export function GradeCard({ assignment, percentImpact, onEditGrade, onDropGrade,
                   
                       <Button
                     systemImage="doc.text"
-                    onPress={() => onResetGrade?.()}>
+                    onPress={() => router.push({
+                      pathname: '/(protected)/assignment-modal',
+                      params: {
+                        objectSectionID: assignment.objectSectionID.toString(),
+                        assignmentName: assignment.assignmentName,
+                      },
+                    })}>
                       View Assignment</Button>
                 </ContextMenu.Items>
                 <ContextMenu.Trigger>
