@@ -12,7 +12,7 @@ if (!supabaseServiceKey) {
 
 
 
-export const supabase = createClient(supabaseUrl, supabaseServiceKey || '', {
+export const supabase = createClient(supabaseUrl, supabaseServiceKey as string, {
   auth: {
     persistSession: false,
     autoRefreshToken: false,
