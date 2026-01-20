@@ -19,6 +19,15 @@ export default function ProfileLayout() {
           headerStyle: { backgroundColor: 'transparent' },
         }}
       />
+      <Stack.Screen
+        name="responsive-schedule"
+        options={{
+          headerTransparent: true,
+          title: 'Responsive Schedule',
+          headerShown: true,
+          headerStyle: { backgroundColor: 'transparent' },
+        }}
+      />
     </Stack>
   )
 }

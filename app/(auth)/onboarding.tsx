@@ -9,7 +9,7 @@ export default function Home() {
   const sentences = [
     ' stay on top of every assignment',
     ' see your grades at a glance',
-    ' get gentle reminders before due dates hit',
+    ' handle responsive schedules with ease',
     ' keep everything organized in one place',
   ];
 

@@ -1,15 +1,19 @@
-import { View, Text, Pressable } from 'react-native'
+import { View, Text, TouchableOpacity } from 'react-native'
 import { CourseGradeAssignment } from '@/api/src/types'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
-import { Button, ContextMenu, Host, Submenu } from '@expo/ui/swift-ui'
+import { MenuView } from '@react-native-menu/menu'
 
 type GradeCardProps = {
   assignment: CourseGradeAssignment
   percentImpact?: number
+  isModified?: boolean
+  isVirtual?: boolean
   onEditGrade?: () => void
   onDropGrade?: () => void
   onResetGrade?: () => void
+  onDeleteAssignment?: () => void
+  onRenameAssignment?: () => void
 }
 
 const formatRelativeDate = (dateString: string | null) => {
@@ -37,18 +41,8 @@ const formatRelativeDate = (dateString: string | null) => {
   return { relativeStr, timeStr }
 }
 
-export function GradeCard({ assignment, percentImpact, onEditGrade, onDropGrade, onResetGrade }: GradeCardProps) {
+export function GradeCard({ assignment, percentImpact, isModified, isVirtual, onEditGrade, onDropGrade, onResetGrade, onDeleteAssignment, onRenameAssignment }: GradeCardProps) {
   const router = useRouter()
-
-  const handlePress = () => {
-    router.push({
-      pathname: '/(protected)/assignment-modal',
-      params: {
-        objectSectionID: assignment.objectSectionID.toString(),
-        assignmentName: assignment.assignmentName,
-      },
-    })
-  }
 
   const scoreDisplay = assignment.score ?? '—'
   const percentDisplay = assignment.scorePercentage ? `${assignment.scorePercentage}%` : null
@@ -58,12 +52,8 @@ export function GradeCard({ assignment, percentImpact, onEditGrade, onDropGrade,
     if (assignment.dropped) return 'text-stone-500'
     if (assignment.missing) return 'text-red-400'
     if (!assignment.score) return 'text-stone-500'
-    const percent = parseFloat(assignment.scorePercentage || '0')
-    //if (percent >= 90) return 'text-green-400'
-    if (percent >= 80) return 'text-green-400'
-    if (percent >= 70) return 'text-yellow-400'
-    if (percent >= 60) return 'text-orange-400'
-    return 'text-red-400'
+    if (isModified) return 'text-yellow-400'
+    return 'text-emerald-500'
   }
 
   const getImpactColor = () => {
@@ -91,6 +81,7 @@ export function GradeCard({ assignment, percentImpact, onEditGrade, onDropGrade,
               {assignment.assignmentName}
             </Text>
             <View className="flex-row items-center mt-2 gap-2 flex-wrap">
+
               {assignment.missing && (
                 <View className="bg-red-500/20 px-2 py-0.5 rounded">
                   <Text className="text-red-400 text-sm font-medium">Missing</Text>
@@ -101,16 +92,12 @@ export function GradeCard({ assignment, percentImpact, onEditGrade, onDropGrade,
                   <Text className="text-orange-400 text-sm font-medium">Late</Text>
                 </View>
               )}
-              {assignment.dropped && (
-                <View className="bg-stone-600/30 px-2 py-0.5 rounded">
-                  <Text className="text-stone-400 text-sm font-medium">Dropped</Text>
-                </View>
-              )}
+
               <Text className="text-stone-500 text-base font-medium">
                 {assignment.totalPoints} pts
               </Text>
               {formatImpact() && (
-                <Text className={`text-base font-medium ${getImpactColor()}`}>
+                <Text className={`text-base font-medium ${isModified ? 'text-yellow-400' : getImpactColor()}`}>
                   {formatImpact()}
                 </Text>
               )}
@@ -132,48 +119,62 @@ export function GradeCard({ assignment, percentImpact, onEditGrade, onDropGrade,
                 </Text>
               )}
             </View>
-            <Host>
-              <ContextMenu>
-                <ContextMenu.Items>
-                  <Submenu button={<Button systemImage="pencil" onPress={() => onEditGrade?.()}>What-If Grades</Button>}>
-                  <Button
-                    systemImage="pencil"
-                    onPress={() => onEditGrade?.()}>
-                      Edit</Button>
-                  <Button
-                    systemImage={assignment.dropped ? 'arrow.uturn.backward' : 'trash'}
-                    onPress={() => onDropGrade?.()}>
-                      {assignment.dropped ? 'Undrop' : 'Drop'}</Button>
-                  <Button
-                    systemImage="arrow.counterclockwise"
-                    role="destructive"
-                    onPress={() => onResetGrade?.()}>
-                      
-                      Reset Grade</Button>
-                  </Submenu>
-                  
-                      <Button
-                    systemImage="doc.text"
-                    onPress={() => router.push({
+            <MenuView
+              onPressAction={({ nativeEvent }) => {
+                switch (nativeEvent.event) {
+                  case 'edit':
+                    onEditGrade?.()
+                    break
+                  case 'drop':
+                    onDropGrade?.()
+                    break
+                  case 'reset':
+                    onResetGrade?.()
+                    break
+                  case 'delete':
+                    onDeleteAssignment?.()
+                    break
+                  case 'rename':
+                    onRenameAssignment?.()
+                    break
+                  case 'view':
+                    router.push({
                       pathname: '/(protected)/assignment-modal',
                       params: {
                         objectSectionID: assignment.objectSectionID.toString(),
                         assignmentName: assignment.assignmentName,
                       },
-                    })}>
-                      View Assignment</Button>
-                </ContextMenu.Items>
-                <ContextMenu.Trigger>
-                  <View className="pl-2">
-                    <Ionicons name="ellipsis-vertical" size={22} color="#78716c" />
-                  </View>
-                </ContextMenu.Trigger>
-              </ContextMenu>
-            </Host>
+                    })
+                    break
+                }
+              }}
+              actions={isVirtual ? [
+                { id: 'edit', title: 'Edit Score', image: 'pencil', imageColor: 'black' },
+                { id: 'drop', title: assignment.dropped ? 'Undrop' : 'Drop', image: assignment.dropped ? 'arrow.uturn.backward' : 'minus.circle', imageColor: 'black' },
+                { id: 'rename', title: 'Rename', image: 'character.cursor.ibeam', imageColor: 'black' },
+                { id: 'delete', title: 'Delete', image: 'trash', imageColor: 'red', attributes: { destructive: true } },
+              ] : [
+                {
+                  id: 'whatif',
+                  title: 'What-If Grades',
+                  image: 'slash.circle',
+                  imageColor: 'black',
+                  subactions: [
+                    { id: 'edit', title: 'Edit', image: 'pencil', imageColor: 'black' },
+                    { id: 'drop', title: assignment.dropped ? 'Undrop' : 'Drop', image: assignment.dropped ? 'arrow.uturn.backward' : 'trash', imageColor: 'black' },
+                    { id: 'reset', title: 'Reset Grade', image: 'arrow.counterclockwise', imageColor: 'red', attributes: { destructive: true } },
+                  ],
+                },
+                { id: 'view', title: 'View Assignment', image: 'doc.text', imageColor: 'black' },
+              ]}
+            >
+              <TouchableOpacity className="pl-2 py-2">
+                <Ionicons name="ellipsis-vertical" size={22} color="#78716c" />
+              </TouchableOpacity>
+            </MenuView>
           </View>
         </View>
 
     </View>
   )
 }
-

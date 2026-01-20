@@ -26,6 +26,7 @@ export type Course = {
   courseName: string
   teacherDisplay: string
   sectionID: number
+  structureID: number
   dropped: boolean
   gradingTasks: GradingTask[]
 }
@@ -33,6 +34,7 @@ export type Course = {
 export type Term = {
   termName: string
   termSeq: number
+  calendarID: number
   courses: Course[]
 }
 
@@ -45,6 +47,8 @@ export type ExtractedCourse = {
   courseName: string
   teacher: string
   sectionID: number
+  calendarID: number
+  structureID: number
   enrollmentID: number
   score: string | undefined
   percent: number | undefined
@@ -107,6 +111,7 @@ export type UserProfile = {
 export type CourseGradeTerm = {
   calendarID: number
   termID: number
+  structureID: number
   termName: string
   termScheduleID: number
   termScheduleName: string
@@ -186,4 +191,41 @@ export type CourseGradeAPIResponse = {
     categories: any[]
     children: any
   }>
+}
+
+export type AppTool = {
+  code: string //student.responsive-schedule
+  name: string
+  url: string
+  display: boolean
+  sequence: number
+}
+
+export type App = {
+  id: number
+  tools: AppTool[]
+}
+
+export type ResponsiveScheduleOffering = {
+  responsiveOfferingID: number
+  responsiveOfferingName: string
+  description: string
+  maxStudents: number
+  courseNumber: string
+  sectionNumber: string
+  teacherDisplay: string
+  roomName: string
+  currentStudents: number
+  rosterID: number
+  teacherRequest: boolean
+  reason: string
+}
+
+export type ResponsiveScheduleSession = {
+  responsiveSessionID: number
+  sessionName: string
+  startDate: number
+  endDate: number
+  sessionOpen: boolean
+  offerings: ResponsiveScheduleOffering[]
 }

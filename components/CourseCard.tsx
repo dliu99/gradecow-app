@@ -51,7 +51,7 @@ export function CourseCard({ course, lastUpdated, recentImpact }: CourseCardProp
       },
     })
   }
-
+  /*
   const getScoreColor = () => {
     if (!course.percent) return 'text-stone-400'
     //if (course.percent >= 90) return 'text-green-400'
@@ -59,7 +59,7 @@ export function CourseCard({ course, lastUpdated, recentImpact }: CourseCardProp
     if (course.percent >= 70) return 'text-yellow-400'
     if (course.percent >= 60) return 'text-orange-400'
     return 'text-red-400'
-  }
+  }*/
 
   const getImpactColor = () => {
     if (recentImpact === undefined || recentImpact === 0) return 'text-stone-500'
@@ -84,7 +84,20 @@ export function CourseCard({ course, lastUpdated, recentImpact }: CourseCardProp
             {course.courseName}
           </Text>
           <Text className="text-stone-400 text-base " numberOfLines={1}>
-          {formatImpact() && <Text className={`${getImpactColor()}`}>({formatImpact()}) </Text>}{course.teacher}
+          
+            {course.teacher}{' '}
+            {formatImpact() ? 
+            (
+              getImpactColor() === 'text-green-400' ? (
+                <Text className={`${getImpactColor()}`}><Ionicons name="caret-up-outline" className={`${getImpactColor()}`} /></Text>
+              ) : getImpactColor() === 'text-red-400' ? (
+                <Text className={`${getImpactColor()}`}><Ionicons name="caret-down-outline" className={`${getImpactColor()}`} /></Text>
+              ) : null
+            ) : null}
+            {formatImpact() && (
+            <Text className={`${getImpactColor()}`}>({formatImpact()}) </Text>)}
+            
+            
           </Text>
           {dateDisplay ? (
             <View className="flex-row items-center mt-2 gap-2">
@@ -97,16 +110,15 @@ export function CourseCard({ course, lastUpdated, recentImpact }: CourseCardProp
           )}
         </View>
         <View className="flex-row items-center gap-3">
-          <View className="items-center">
-            <Text className={`text-2xl font-semibold ${getScoreColor()}`}>
-              {course.score ?? '-'}
-            </Text>
-            <Text className={`text-2xl font-semibold ${getScoreColor()}`}>
-              ({course.percent !== undefined ? `${course.percent}%` : '-'})
+          <View className="items-center ">
+          
+            <Text className={`text-2xl font-semibold text-emerald-500`}>
+              {course.score ?? '-'} ({course.percent !== undefined ? `${course.percent}%` : '-'})
             </Text>
           </View>
           <Ionicons name="arrow-forward" size={24} color="#ffffff" />
         </View>
+
       </View>
     </Pressable>
   )

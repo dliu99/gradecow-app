@@ -4,31 +4,19 @@ import { useAllGradesWithDetails } from '@/hooks/use-ic'
 import { CourseCard } from '@/components/CourseCard'
 import { CourseGradeDetailResponse, ExtractedCourse } from '@/api/src/types'
 import { useMemo, useState } from 'react'
+import { calculatePercentImpactFromRaw } from '@/utils/grade-calculator'
 
 function computeCourseStats(courseData: CourseGradeDetailResponse | undefined) {
   if (!courseData?.categories) return { lastUpdated: null, recentImpact: undefined }
   
   const isWeighted = courseData.task.groupWeighted
-  const totalCoursePoints = courseData.categories.reduce((sum, cat) => {
-    return sum + cat.assignments.reduce((catSum, a) => catSum + (a.dropped ? 0 : a.totalPoints), 0)
-  }, 0)
   
   let mostRecent: { date: string; impact: number } | null = null
   
   for (const category of courseData.categories) {
-    const categoryTotalPoints = category.assignments.reduce((sum, a) => sum + (a.dropped ? 0 : a.totalPoints), 0)
-    
     for (const assignment of category.assignments) {
       if (assignment.scoreModifiedDate && assignment.score !== null && !assignment.dropped) {
-        const scorePercent = parseFloat(assignment.scorePercentage || '0')
-        const deviation = scorePercent - 100
-        
-        let percentImpact = 0
-        if (isWeighted && categoryTotalPoints > 0) {
-          percentImpact = (deviation / 100) * (assignment.totalPoints / categoryTotalPoints) * category.weight
-        } else if (totalCoursePoints > 0) {
-          percentImpact = (deviation / 100) * (assignment.totalPoints / totalCoursePoints) * 100
-        }
+        const percentImpact = calculatePercentImpactFromRaw(assignment, courseData.categories, isWeighted)
         
         if (!mostRecent || new Date(assignment.scoreModifiedDate) > new Date(mostRecent.date)) {
           mostRecent = { 

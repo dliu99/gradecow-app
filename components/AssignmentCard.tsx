@@ -14,7 +14,9 @@ type AssignmentCardProps = {
 function formatRelativeTime(dueDate: dayjs.Dayjs, now: dayjs.Dayjs): string {
   const diffHours = dueDate.diff(now, 'hour')
   const diffDays = dueDate.startOf('day').diff(now.startOf('day'), 'day')
-
+  if (diffDays < 0) {
+    return `${Math.abs(diffDays)}d ago`
+  }
   if (diffHours < 1) {
     const diffMinutes = dueDate.diff(now, 'minute')
     if (diffMinutes <= 0) return 'now'
@@ -68,13 +70,13 @@ export function AssignmentCard({ assignment, courseName, compact, now }: Assignm
             </Text>
           )}
           {assignment.totalPoints && (
-            <Text className="text-stone-500 text-base mt-1">{assignment.totalPoints} pts • <Text className="text-green-500 text-base">{relativeTime} <Text className="text-stone-500 text-base">@ {dueDate.format('h:mm A')}</Text></Text></Text>
-          )}
+            <Text className="text-stone-500 text-base mt-1">{assignment.totalPoints} pts • {relativeTime.endsWith('ago') ? <Text className="text-red-500 text-base">{relativeTime}</Text> : <Text className="text-green-500 text-base">{relativeTime}</Text>} <Text className="text-stone-500 text-base">@ {dueDate.format('h:mm A')}</Text></Text>
+            )}
+          </View>
+          <View className="items-center justify-center">
+            <Ionicons name="arrow-forward" size={24} color="#ffffff" />
+          </View>
         </View>
-        <View className="items-center justify-center">
-          <Ionicons name="arrow-forward" size={24} color="#ffffff" />
-        </View>
-      </View>
-    </Pressable>
-  )
-}
+      </Pressable>
+    )
+  }

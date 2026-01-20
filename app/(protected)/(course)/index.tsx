@@ -3,12 +3,13 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router'
 import { useCourseGrade } from '@/hooks/use-ic'
 import { GradeCard } from '@/components/GradeCard'
-import { CourseGradeAssignment, CourseGradeCategory } from '@/api/src/types'
+import { GenericGradeCard } from '@/components/GenericGradeCard'
 import { useMemo } from 'react'
-import { Button, ContextMenu, Host } from '@expo/ui/swift-ui'
 import { Ionicons } from '@expo/vector-icons'
+import { useWhatIf } from './_context'
+import { applyWhatIfModifications, recalculateGrade, ModifiedAssignment, calculatePercentImpact, percentToLetterGrade } from '@/utils/grade-calculator'
 
-type AssignmentWithImpact = CourseGradeAssignment & { 
+type AssignmentWithImpact = ModifiedAssignment & { 
   percentImpact: number
   categoryWeight: number
 }
@@ -29,31 +30,41 @@ export default function CourseModal() {
     sectionID ? parseInt(sectionID, 10) : 0
   )
 
-  const recentGrades = useMemo(() => {
-    if (!courseData?.categories) return []
+  const { modifications, openEditSheet, toggleDrop, resetGrade, resetAll } = useWhatIf()
+
+  const { modifiedCategories, calculatedGrade, originalPercent, hasModifications } = useMemo(() => {
+    if (!courseData?.categories) {
+      return { 
+        modifiedCategories: [], 
+        calculatedGrade: null, 
+        originalPercent: percent ? parseFloat(percent) : null,
+        hasModifications: false 
+      }
+    }
     
+    const modified = applyWhatIfModifications(courseData.categories, modifications)
     const isWeighted = courseData.task.groupWeighted
-    const totalCoursePoints = courseData.categories.reduce((sum, cat) => {
-      return sum + cat.assignments.reduce((catSum, a) => catSum + (a.dropped ? 0 : a.totalPoints), 0)
-    }, 0)
+    const calculated = recalculateGrade(modified, isWeighted)
+    const origPercent = percent ? parseFloat(percent) : (courseData.task.progressPercent ?? courseData.task.percent ?? null)
+    const hasMods = modifications.size > 0
+    
+    return { 
+      modifiedCategories: modified, 
+      calculatedGrade: calculated,
+      originalPercent: origPercent,
+      hasModifications: hasMods
+    }
+  }, [courseData, modifications, percent])
+
+  const recentGrades = useMemo(() => {
+    if (!modifiedCategories.length) return []
+    
+    const isWeighted = courseData?.task.groupWeighted ?? false
     
     const allAssignments: AssignmentWithImpact[] = []
-    for (const category of courseData.categories) {
-      const categoryTotalPoints = category.assignments.reduce((sum, a) => sum + (a.dropped ? 0 : a.totalPoints), 0)
-      
+    for (const category of modifiedCategories) {
       for (const assignment of category.assignments) {
-        let percentImpact = 0
-        
-        if (assignment.score !== null && !assignment.dropped) {
-          const scorePercent = parseFloat(assignment.scorePercentage || '0')
-          const deviation = scorePercent - 100
-          
-          if (isWeighted && categoryTotalPoints > 0) {
-            percentImpact = (deviation / 100) * (assignment.totalPoints / categoryTotalPoints) * category.weight
-          } else if (totalCoursePoints > 0) {
-            percentImpact = (deviation / 100) * (assignment.totalPoints / totalCoursePoints) * 100
-          }
-        }
+        const percentImpact = calculatePercentImpact(assignment, modifiedCategories, isWeighted)
         
         allAssignments.push({ 
           ...assignment, 
@@ -71,30 +82,24 @@ export default function CourseModal() {
         return new Date(dateB).getTime() - new Date(dateA).getTime()
       })
       .slice(0, 5)
-  }, [courseData])
+  }, [modifiedCategories, courseData])
 
   if (!sectionID) {
     router.back()
     return null
   }
 
-  const getScoreColor = () => {
-    if (!percent) return 'text-stone-400'
-    const p = parseFloat(percent)
-    if (p >= 90) return 'text-green-400'
-    if (p >= 80) return 'text-green-500'
-    if (p >= 70) return 'text-yellow-400'
-    if (p >= 60) return 'text-orange-400'
-    return 'text-red-400'
-  }
-
-  const handleWhatIfCalculator = () => {
-    console.log('What-If Calculator pressed')
-  }
-
-  const handleResetAll = () => {
-    console.log('Reset All pressed')
-  }
+  const displayPercent = hasModifications 
+  ? calculatedGrade?.percent ?? null
+  : (courseData?.task.progressPercent ?? courseData?.task.percent ?? (percent ? parseFloat(percent) : null))
+  
+  const displayScore = hasModifications && displayPercent !== null
+    ? percentToLetterGrade(displayPercent)
+    : score
+  
+  const percentChange = hasModifications && originalPercent !== null && displayPercent !== null
+    ? Math.round((displayPercent - originalPercent) * 100) / 100
+    : null
 
   const handleSeeAllGrades = () => {
     router.push({
@@ -119,46 +124,31 @@ export default function CourseModal() {
           headerTitle: courseName,
           headerStyle: { backgroundColor: 'transparent' },
           headerTintColor: '#fff',
-          headerRight: () => (
-            <Host style={{ width: 44, height: 44 }}>
-              <ContextMenu>
-                <ContextMenu.Items>
-                  <Button
-                    systemImage="function"
-                    onPress={handleWhatIfCalculator}
-                    >What-If Calculator</Button>
-                  <Button
-                    systemImage="arrow.counterclockwise"
-                    role="destructive"
-                    onPress={handleResetAll}
-                  >Reset All</Button>
-                </ContextMenu.Items>
-                <ContextMenu.Trigger>
-                  <Button systemImage="ellipsis.circle" />
-                </ContextMenu.Trigger>
-              </ContextMenu>
-            </Host>
-          ),
+          /*headerRight: () => (
+            <MenuView
+              onPressAction={({ nativeEvent }) => {
+                if (nativeEvent.event === 'reset') resetAll()
+              }}
+              actions={[
+                { id: 'reset', title: 'Reset All', image: 'arrow.counterclockwise', imageColor: 'red', attributes: { destructive: true } },
+              ]}
+            >
+              <TouchableOpacity style={{ padding: 8 }}>
+                <Ionicons name="ellipsis-horizontal" size={22} color="#fff" />
+              </TouchableOpacity>
+            </MenuView>
+          ),*/
         }}
       />
       <SafeAreaView className="flex-1 bg-neutral-900" edges={['top']}>
         <ScrollView className="flex-1 px-4 pt-6">
-
-          <View className="bg-stone-800 rounded-2xl p-6 mb-6">
-            <View className="flex-row items-center justify-between">
-              <Text className="text-stone-400 text-xl font-medium">{taskName}</Text>
-              <View className="items-center">
-                <Text className={`text-2xl font-bold ${getScoreColor()}`}>
-                  {score ?? '—'}
-                </Text>
-                {percent && (
-                  <Text className={`text-2xl font-semibold ${getScoreColor()}`}>
-                    ({percent}%)
-                  </Text>
-                )}
-              </View>
-            </View>
-          </View>
+          <GenericGradeCard
+            taskName={taskName}
+            score={displayScore}
+            displayPercent={displayPercent}
+            percentChange={percentChange}
+            hasModifications={hasModifications}
+          />
 
           {isLoading ? (
             <View className="py-10">
@@ -179,9 +169,10 @@ export default function CourseModal() {
                     key={assignment.objectSectionID}
                     assignment={assignment}
                     percentImpact={assignment.percentImpact}
-                    onEditGrade={() => console.log('Edit', assignment.assignmentName)}
-                    onDropGrade={() => console.log('Drop/Undrop', assignment.assignmentName)}
-                    onResetGrade={() => console.log('Reset', assignment.assignmentName)}
+                    isModified={assignment.isModified}
+                    onEditGrade={() => openEditSheet(assignment)}
+                    onDropGrade={() => toggleDrop(assignment.objectSectionID, assignment.dropped ?? false)}
+                    onResetGrade={() => resetGrade(assignment.objectSectionID)}
                   />
                 ))
               ) : (
@@ -208,4 +199,3 @@ export default function CourseModal() {
     </>
   )
 }
-
