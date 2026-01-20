@@ -2,7 +2,9 @@ import { Hono } from "hono"
 import { ContentfulStatusCode } from "hono/utils/http-status"
 import * as Iron from 'iron-webcrypto'
 import { Session, Variables, Enrollment, ExtractedCourse, Assignment, AssignmentDetail, userAccount, UserProfile, CourseGradeTerm, CourseGradeAPIResponse, CourseGradeDetailResponse, CourseGradeCategory, CourseGradeAssignment, CategoryProgress, CourseGradeTask, ResponsiveScheduleSession, App } from './types'
-const ironKey = process.env.IRON_KEY as string
+import { env } from 'cloudflare:workers'
+
+const ironKey = (env as Env).IRON_KEY as string
 
 const getActiveTermIDs = (terms: CourseGradeTerm[], now: Date = new Date()): number[] => {
   const sorted = [...terms].sort((a, b) => a.termSeq - b.termSeq)
@@ -305,7 +307,7 @@ return c.json(assignments)
           return c.json({ ok: false, message: response.statusText }, response.status as ContentfulStatusCode)
       }
 
-      const data = await response.json()
+      const data = await response.json() as AssignmentDetail
       const detail: AssignmentDetail = {
           curriculumAlignmentID: data.curriculumAlignmentID,
           sectionID: data.sectionID,
@@ -334,7 +336,7 @@ return c.json(assignments)
     if (response.status !== 200) {
       return c.json({ ok: false, message: 'IC error: ' + response.statusText }, response.status as ContentfulStatusCode)
     }
-    const data = await response.json()
+    const data = await response.json() as any //sorry
     // total absences and tardies are the sum across all courses in all terms
     let absences = 0
     let tardies = 0

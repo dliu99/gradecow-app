@@ -1,5 +1,5 @@
 {
-  "name": "gradecow",
+  "name": "gradecow-backend",
   "compatibility_date": "2026-01-19",
     "main": "src/index.ts"
 }

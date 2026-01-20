@@ -1,9 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
 import * as Iron from 'iron-webcrypto'
+import { env } from 'cloudflare:workers'
 
-const ironKey = process.env.IRON_KEY as string
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://otgnosivxwcrosclmyxv.supabase.co'
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+const ironKey = (env as Env).IRON_KEY as string
+const supabaseUrl = (env as Env).EXPO_PUBLIC_SUPABASE_URL || 'https://otgnosivxwcrosclmyxv.supabase.co'
+const supabaseServiceKey = (env as Env).SUPABASE_SERVICE_ROLE_KEY
 
 if (!supabaseServiceKey) {
   console.warn('SUPABASE_SERVICE_ROLE_KEY not set')
