@@ -1,7 +1,7 @@
 import { Hono } from "hono"
 import { ContentfulStatusCode } from "hono/utils/http-status"
 import * as Iron from 'iron-webcrypto'
-import { Session, Variables, Enrollment, ExtractedCourse, Assignment, AssignmentDetail, userAccount, UserProfile, CourseGradeTerm, CourseGradeAPIResponse, CourseGradeDetailResponse, CourseGradeCategory, CourseGradeAssignment, CategoryProgress, CourseGradeTask } from './types'
+import { Session, Variables, Enrollment, ExtractedCourse, Assignment, AssignmentDetail, userAccount, UserProfile, CourseGradeTerm, CourseGradeAPIResponse, CourseGradeDetailResponse, CourseGradeCategory, CourseGradeAssignment, CategoryProgress, CourseGradeTask, ResponsiveScheduleSession, App } from './types'
 const ironKey = process.env.IRON_KEY as string
 
 const getActiveTermIDs = (terms: CourseGradeTerm[], now: Date = new Date()): number[] => {
@@ -53,6 +53,8 @@ const extractCourseGrades = (enrollments: Enrollment[]): ExtractedCourse[] => {
           courseName: course.courseName,
           teacher: course.teacherDisplay,
           sectionID: course.sectionID,
+          calendarID: term.calendarID,
+          structureID: course.structureID,
           enrollmentID: enrollment.enrollmentID,
           score: task?.progressScore || task?.score,
           percent: task?.progressPercent || task?.percent,
@@ -118,6 +120,45 @@ const ic = new Hono<{ Variables: Variables }>()
     }
 
     return c.json({ gpa, absences: null, tardies: null } satisfies UserProfile)
+  })
+  .get('/user/appList', async (c) => {
+    const session = c.get('session')
+    const baseUrl = session.baseURL
+    const response = await fetch(`https://${baseUrl}/resources/apps?language=en`, {
+      headers: { Cookie: session.cookie, 'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'User-Agent': 'StudentApp/1.11.4 Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148' }
+    })
+    const data = await response.json() as App[]
+    return c.json(data)
+  })
+  .get('/responsiveSchedule', async (c) => {
+    const session = c.get('session')
+    const sectionID = c.req.query('sectionID')
+    const calendarID = c.req.query('calendarID')
+    const structureID = c.req.query('structureID')
+
+    if (!sectionID) {
+      return c.json({ ok: false, message: 'sectionID is required' }, 400)
+    }
+    if (!calendarID) {
+      return c.json({ ok: false, message: 'calendarID is required' }, 400)
+    }
+
+    const res = await fetch(
+      `https://${session.baseURL}/resources/prism/portal/responsiveSchedule?calendarID=${calendarID}&personID=${session.personID}&structureID=${structureID}`,
+      { headers: { Cookie: session.cookie } }
+    )
+
+    if (res.status !== 200) {
+      return c.json({ ok: false, message: res.statusText }, res.status as ContentfulStatusCode)
+    }
+    
+    const data = await res.json() as ResponsiveScheduleSession[]
+    console.log(data)
+    return c.json(data)
   })
   .get('/courseGrades', async (c) => {
       const session = c.get('session')

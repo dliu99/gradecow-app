@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import type { AppType } from '@/api/src'
 import { hc } from 'hono/client'
-import { Assignment, AssignmentDetail, CourseGradeDetailResponse, ExtractedCourse, userAccount, UserProfile } from '@/api/src/types'
+import { App, Assignment, AssignmentDetail, CourseGradeDetailResponse, ExtractedCourse, ResponsiveScheduleSession, userAccount, UserProfile } from '@/api/src/types'
 import { getAuthSession } from '@/utils/storage'
 
 function getClient() {
@@ -108,6 +108,45 @@ export function useProfile() {
       }
       return { ...profile, absences: null, tardies: null }
     },
+  })
+}
+
+export function useAppList(enabled = true) {
+  return useQuery({
+    queryKey: ['ic', 'appList'],
+    queryFn: async () => {
+      const client = getClient()
+      const res = await client.ic.user.appList.$get()
+      if (res.ok) {
+        const data = (await res.json()) as App[]
+        console.log(data)
+        return data
+      } else {
+        throw createApiError(res.statusText, res.status)
+      }
+    },
+    enabled,
+  })
+}
+
+export function useResponsiveSchedule(sectionID?: number, calendarID?: number, structureID?: number) {
+  return useQuery({
+    queryKey: ['ic', 'responsiveSchedule', sectionID],
+    queryFn: async () => {
+      const client = getClient()
+
+      const res = await client.ic.responsiveSchedule.$get({
+        query: { sectionID: sectionID?.toString() ?? '', calendarID: calendarID?.toString() ?? '', structureID: structureID?.toString() ?? '' },
+      })
+      if (res.ok) {
+
+        return (await res.json()) as ResponsiveScheduleSession[]
+      } else {
+        console.log('responsive schedule error: ', res.status)
+        throw createApiError(res.statusText, res.status)
+      }
+    },
+    enabled: !!sectionID && !!calendarID && !!structureID,
   })
 }
 
