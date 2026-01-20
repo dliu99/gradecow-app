@@ -4,7 +4,9 @@ import * as Iron from 'iron-webcrypto'
 import { Session, Variables, Enrollment, ExtractedCourse, Assignment, AssignmentDetail, userAccount, UserProfile, CourseGradeTerm, CourseGradeAPIResponse, CourseGradeDetailResponse, CourseGradeCategory, CourseGradeAssignment, CategoryProgress, CourseGradeTask, ResponsiveScheduleSession, App } from './types'
 import { env } from 'cloudflare:workers'
 
-const ironKey = (env as Env).IRON_KEY as string
+function getIronKey(): string {
+  return (env as Env).IRON_KEY
+}
 
 const getActiveTermIDs = (terms: CourseGradeTerm[], now: Date = new Date()): number[] => {
   const sorted = [...terms].sort((a, b) => a.termSeq - b.termSeq)
@@ -79,7 +81,7 @@ const ic = new Hono<{ Variables: Variables }>()
           return c.json({ ok: false, message: 'Unauthorized, no session' }, 401)
       }
       try {
-          const session = await Iron.unseal(sessionToken, ironKey, Iron.defaults)
+          const session = await Iron.unseal(sessionToken, getIronKey(), Iron.defaults)
           c.set('session', session as Session)
       } catch (error) {
           return c.json({ ok: false, message: 'Invalid session token' }, 401)
