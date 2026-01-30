@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import dayjs from 'dayjs'
+import { useHeaderHeight } from '@react-navigation/elements';
 import { useGrades, useResponsiveSchedule, useUpdateResponsiveSchedule } from '@/hooks/use-ic'
 
 function formatSessionDate(startDate: number, endDate: number) {
@@ -24,6 +25,7 @@ export default function ResponsiveSchedule() {
   const updateMutation = useUpdateResponsiveSchedule()
   const [query, setQuery] = useState('')
   const [mutatingOfferingId, setMutatingOfferingId] = useState<number | null>(null)
+  const headerHeight = useHeaderHeight();
 
 
   const filteredSessions = useMemo(() => {
@@ -46,7 +48,7 @@ export default function ResponsiveSchedule() {
 
   if (!sectionID) {
     return (
-      <SafeAreaView className="flex-1 bg-neutral-900 items-center justify-center" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-neutral-900 items-center justify-center" edges={['top']} style={{ paddingTop: headerHeight }}>
         <Text className="text-white text-lg">No course data available yet.</Text>
       </SafeAreaView>
     )
