@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import type { AppType } from '@/api/src'
 import { hc } from 'hono/client'
 import { App, Assignment, AssignmentDetail, CourseGradeDetailResponse, ExtractedCourse, ResponsiveScheduleSession, userAccount, UserProfile } from '@/api/src/types'
@@ -208,5 +208,30 @@ export function useCourseGrade(sectionID: number) {
       }
     },
     enabled: !!sectionID,
+  })
+}
+
+export function useUpdateResponsiveSchedule() {
+  return useMutation({
+    mutationFn: async (params: {
+      responsiveOfferingID: number
+      calendarID: number
+      responsiveSessionID: number
+    }) => {
+      const client = getClient()
+      const res = await client.ic.responsiveSchedule.update.$post({
+        query: {
+          responsiveOfferingID: params.responsiveOfferingID.toString(),
+          calendarID: params.calendarID.toString(),
+          responsiveSessionID: params.responsiveSessionID.toString(),
+        },
+      })
+      if (res.ok) {
+        return await res.json() as { ok: boolean; message: string }
+      } else {
+        const errorData = await res.json() as { ok: boolean; message: string }
+        throw new Error(errorData.message || res.statusText)
+      }
+    },
   })
 }

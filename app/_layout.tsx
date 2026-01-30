@@ -1,9 +1,11 @@
 import '../global.css';
 
+import { useEffect } from 'react';
+import { AppState, Platform } from 'react-native';
 import { Stack } from 'expo-router';
 
 import '@/global.css';
-import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, QueryCache, MutationCache, focusManager } from '@tanstack/react-query'
 import { verifyAndRefreshAuth } from '@/utils/storage'
 
 let isRefreshing = false
@@ -50,6 +52,15 @@ const queryClient = new QueryClient({
 })
 
 export default function Layout() {
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (status) => {
+      if (Platform.OS !== 'web') {
+        focusManager.setFocused(status === 'active')
+      }
+    })
+    return () => subscription.remove()
+  }, [])
+
   return (
     <QueryClientProvider client={queryClient}>
     <Stack>

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import dayjs from 'dayjs'
-import { useGrades, useResponsiveSchedule } from '@/hooks/use-ic'
+import { useGrades, useResponsiveSchedule, useUpdateResponsiveSchedule } from '@/hooks/use-ic'
 
 function formatSessionDate(startDate: number, endDate: number) {
   const start = dayjs(startDate)
@@ -21,8 +21,10 @@ export default function ResponsiveSchedule() {
   const calendarID = grades?.[0]?.calendarID
   const structureID = grades?.[0]?.structureID
   const { data: sessions, isLoading, isFetching, error, refetch } = useResponsiveSchedule(sectionID, calendarID, structureID)
+  const updateMutation = useUpdateResponsiveSchedule()
   const [query, setQuery] = useState('')
-  const [selectedOfferingId, setSelectedOfferingId] = useState<number | null>(null)
+  const [mutatingOfferingId, setMutatingOfferingId] = useState<number | null>(null)
+
 
   const filteredSessions = useMemo(() => {
     if (!sessions) return []
@@ -30,11 +32,13 @@ export default function ResponsiveSchedule() {
 
     return sessions
       .map((session) => {
-        const offerings = (session.offerings || []).filter((offering) => {
-          const teacher = offering.teacherDisplay?.toLowerCase() || ''
-          const name = offering.responsiveOfferingName?.toLowerCase() || ''
-          return normalizedQuery.length === 0 || teacher.includes(normalizedQuery) || name.includes(normalizedQuery)
-        })
+        const offerings = (session.offerings || [])
+          .filter((offering) => {
+            const teacher = offering.teacherDisplay?.toLowerCase() || ''
+            const name = offering.responsiveOfferingName?.toLowerCase() || ''
+            return normalizedQuery.length === 0 || teacher.includes(normalizedQuery) || name.includes(normalizedQuery)
+          })
+          .sort((a, b) => (b.rosterID !== 0 ? 1 : 0) - (a.rosterID !== 0 ? 1 : 0))
         return { ...session, offerings }
       })
       .filter((session) => session.offerings.length > 0)
@@ -61,7 +65,7 @@ export default function ResponsiveSchedule() {
   return (
     <SafeAreaView className="flex-1 bg-neutral-900" edges={['top']}>
       <ScrollView
-        className="flex-1 px-4 pt-8"
+        className="flex-1 px-4"
         contentContainerStyle={{ paddingBottom: 32 }}
         refreshControl={
           <RefreshControl
@@ -75,11 +79,7 @@ export default function ResponsiveSchedule() {
       >
         <View className="mb-6">
           {/*<Text className="text-white text-4xl font-bold">Responsive Schedule</Text>}*/}
-          {!isEmpty && (
-            <Text className="text-stone-500 text-lg font-semibold mt-2">
-              {sessions?.length} session{sessions?.length !== 1 ? 's' : ''} available
-            </Text>
-          )}
+
         </View>
 
         {error && (
@@ -94,7 +94,15 @@ export default function ResponsiveSchedule() {
           </View>
         )}
 
-        {!isEmpty && sessions && sessions.length > 0 && (
+        
+
+        {filteredSessions.map((session) => (
+          <View key={session.responsiveSessionID} className="mb-4">
+            <Text className="text-white text-3xl font-bold">{session.sessionName}</Text>
+            <Text className="text-stone-500 text-xl font-semibold mt-1 mb-3">
+              {formatSessionDate(session.startDate, session.endDate)} · {session.sessionOpen ? 'Open' : 'Closed'}
+            </Text>
+            {!isEmpty && sessions && sessions.length > 0 && (
           <TextInput
             className="bg-stone-800 rounded-2xl p-4 text-white text-base mb-4"
             placeholder="Search by teacher or class"
@@ -106,33 +114,61 @@ export default function ResponsiveSchedule() {
           />
         )}
 
-        {filteredSessions.map((session) => (
-          <View key={session.responsiveSessionID} className="mb-4">
-            <Text className="text-white text-3xl font-bold">{session.sessionName}</Text>
-            <Text className="text-stone-500 text-xl font-semibold mt-1 mb-3">
-              {formatSessionDate(session.startDate, session.endDate)} · {session.sessionOpen ? 'Open' : 'Closed'}
-            </Text>
-
             {session.offerings.map((offering) => {
               const isFull = offering.maxStudents > 0 && offering.currentStudents >= offering.maxStudents
-              const isSelected = selectedOfferingId === offering.responsiveOfferingID
+              const isPending = mutatingOfferingId === offering.responsiveOfferingID
+              const isSaved = offering.rosterID !== 0
+
+
+              const handlePress = async () => {
+                setMutatingOfferingId(offering.responsiveOfferingID)
+                try {
+                  await updateMutation.mutateAsync({
+                    responsiveOfferingID: offering.responsiveOfferingID,
+                    calendarID: calendarID!,
+                    responsiveSessionID: session.responsiveSessionID,
+                  })
+                  const result = await refetch()
+                  const updated = result.data?.find(s => s.responsiveSessionID === session.responsiveSessionID)
+                    ?.offerings.find(o => o.responsiveOfferingID === offering.responsiveOfferingID)
+
+                } finally {
+                  setMutatingOfferingId(null)
+                }
+              }
+
+              let bgClass = ''
+              if (isPending) {
+                bgClass = 'bg-stone-600'
+              } else if (isSaved) {
+                bgClass = ''//'bg-green-900/50'
+              }
+
               return (
                 <Pressable
                   key={offering.responsiveOfferingID}
-                  onPress={() => setSelectedOfferingId(offering.responsiveOfferingID)}
-                  className={`rounded-2xl p-4 mb-3 ${isSelected ? 'bg-stone-700' : 'bg-stone-800'}`}
+                  onPress={handlePress}
+                  disabled={isPending || isSaved}
+                  className={`p-2 mb-3 rounded-xl ${bgClass}`}
                 >
                   <View className="flex-row justify-between items-start">
                     <View className="flex-1 mr-4">
-                      <Text className="text-white text-base font-semibold" numberOfLines={2}>{offering.responsiveOfferingName}</Text>
-                      <Text className="text-stone-400 mt-1">{offering.teacherDisplay} · Room {offering.roomName || 'TBD'}</Text>
+                      <Text className="text-white text-base font-semibold text-lg" numberOfLines={2}>{offering.responsiveOfferingName}</Text>
+                      {offering.description && (
+                        <Text className="text-stone-400 text-sm">{offering.description}</Text>
+                      ) }
+                      <Text className="text-stone-400 text-sm">{offering.teacherDisplay} · Room {offering.roomName || 'TBD'}<Text className={`text-${isSaved ? 'green-400' : 'stone-400'}`}>{isSaved ? ` · Saved` : ''}</Text></Text>
                     </View>
+                   
+
                     <View className="items-end">
-                      <Text className={`text-sm font-medium ${isFull ? 'text-rose-400' : 'text-green-400'}`}>
+                      <Text className={`text-lg font-medium ${isFull ? 'text-rose-400' : 'text-green-400'}`}>
                         {offering.currentStudents}/{offering.maxStudents}
                       </Text>
+                      {isPending && <ActivityIndicator size="small" color="#9ca3af" className="mt-1" />}
                     </View>
                   </View>
+                  
                 </Pressable>
               )
             })}
@@ -148,3 +184,4 @@ export default function ResponsiveSchedule() {
     </SafeAreaView>
   )
 }
+

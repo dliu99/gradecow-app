@@ -77,10 +77,10 @@ export function CourseCard({ course, lastUpdated, recentImpact }: CourseCardProp
   const dateDisplay = formatRelativeDate(lastUpdated)
 
   return (
-    <Pressable onPress={handlePress} className="bg-stone-800 rounded-2xl p-5 mb-4">
+    <Pressable onPress={handlePress} className="bg-stone-800 rounded-2xl p-5 mb-4 active:scale-[0.97] active:opacity-80">
       <View className="flex-row justify-between items-center">
         <View className="flex-1 mr-4">
-          <Text className="text-white text-2xl font-semibold leading-snug" numberOfLines={2}>
+          <Text className="text-white text-lg font-semibold leading-snug" numberOfLines={2}>
             {course.courseName}
           </Text>
           <Text className="text-stone-400 text-base " numberOfLines={1}>

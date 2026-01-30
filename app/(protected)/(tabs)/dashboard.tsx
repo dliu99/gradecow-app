@@ -1,11 +1,11 @@
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native'
+import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, RefreshControl, AppState } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Link } from 'expo-router'
 import { useAllAssignments, useGrades, useUser } from '@/hooks/use-ic'
 import { AssignmentCard } from '@/components/AssignmentCard'
 import { AssignmentHeatmap } from '@/components/AssignmentHeatmap'
 import { Assignment } from '@/api/src/types'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import dayjs from 'dayjs'
 
 const GREETINGS = {
@@ -179,7 +179,16 @@ export default function Dashboard() {
     return map
   }, [grades])
 
-  const today = useMemo(() => dayjs(), [])
+  const [today, setToday] = useState(() => dayjs())
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (status) => {
+      if (status === 'active') {
+        setToday(dayjs())
+      }
+    })
+    return () => subscription.remove()
+  }, [])
 
   const grouped = useMemo(() => {
     if (!assignments) return { today: [], upcoming: [], beyond: [] }

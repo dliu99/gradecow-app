@@ -153,16 +153,53 @@ const ic = new Hono<{ Variables: Variables }>()
 
     const res = await fetch(
       `https://${session.baseURL}/resources/prism/portal/responsiveSchedule?calendarID=${calendarID}&personID=${session.personID}&structureID=${structureID}`,
-      { headers: { Cookie: session.cookie } }
+      { headers: { Cookie: session.cookie, 'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'User-Agent': 'StudentApp/1.11.4 Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148' } }
     )
 
     if (res.status !== 200) {
+      console.log(`https://${session.baseURL}/resources/prism/portal/responsiveSchedule?calendarID=${calendarID}&personID=${session.personID}&structureID=${structureID}`)
+      console.log('responsive schedule error: ', res.statusText)
       return c.json({ ok: false, message: res.statusText }, res.status as ContentfulStatusCode)
     }
     
     const data = await res.json() as ResponsiveScheduleSession[]
     console.log(data)
     return c.json(data)
+  })
+  .post('/responsiveSchedule/update', async (c) => {
+    const session = c.get('session')
+    const responsiveOfferingID = c.req.query('responsiveOfferingID')
+    const calendarID = c.req.query('calendarID')
+    const responsiveSessionID = c.req.query('responsiveSessionID')
+    const personID = session.personID
+
+    const response = await fetch(`https://${session.baseURL}/resources/prism/portal/responsiveSchedule/update`, {
+      method: 'POST',
+      body: JSON.stringify({
+        calendarID: Number(calendarID),
+        personID: Number(personID),
+        responsiveOfferingID: Number(responsiveOfferingID),
+        responsiveSessionID: Number(responsiveSessionID),
+      }),
+      headers: {
+        'Cookie': session.cookie,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'User-Agent': 'StudentApp/1.11.4 Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148'
+      }
+    })
+    const data = await response.json() as {"success": boolean, "message": string}
+    if (!data.success) {
+      return c.json({ ok: false, message: data.message }, 400)
+    }
+    return c.json({ ok: true, message: data.message })
   })
   .get('/courseGrades', async (c) => {
       const session = c.get('session')
