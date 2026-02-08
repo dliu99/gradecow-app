@@ -35,15 +35,19 @@ export async function unsealSessionData<T = object>(sealed: string): Promise<T> 
   return await Iron.unseal(sealed, ironKey, Iron.defaults) as T
 }
 
-export async function createICSession(personId: number, sessionToken: string): Promise<number | null> {
+export async function createICSession(userID: number, personId: number, sessionToken: string): Promise<string | null> {
   const supabase = getSupabase()
+  const uuid = `${userID}.${personId}`
+  
   const { data, error } = await supabase
     .from('ic_sessions')
     .upsert({
+      uuid: uuid,
+      user_id: userID,
       person_id: personId,
       session_token: sessionToken,
     })
-    .select('person_id')
+    .select('uuid')
     .single()
   
   if (error) {
@@ -51,5 +55,5 @@ export async function createICSession(personId: number, sessionToken: string): P
     return null
   }
   
-  return data?.person_id || null
+  return data?.uuid || null
 }

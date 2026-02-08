@@ -37,6 +37,7 @@ interface SessionData {
   deviceModel: string
   deviceType: string
   systemVersion: string
+  userID: number
   personID: number
 }
 
@@ -165,14 +166,13 @@ auth.post('/verify-session', async (c) => {
     //return c.json({ ok: false, message: 'Session expired or invalid' }, 401)
   }
 
-  const userData = await verifyResponse.json() as { personID: number }
+  const userData = await verifyResponse.json() as {userID: number, personID: number}
+  const userID = userData.userID
   const personID = userData.personID
 
-  if (!personID) {
-    console.log('No personID found in user data')
-    //return c.json({ ok: false, message: 'Failed to get user information' }, 401)
+  if (!personID || !userID) {
+    console.log('No personID or userID found in user data')
   }
-
 
   const newSessionToken = await sealSessionData({ 
     cookie: updatedCookie,
@@ -181,14 +181,15 @@ auth.post('/verify-session', async (c) => {
     deviceModel: sessionData.deviceModel,
     deviceType: sessionData.deviceType,
     systemVersion: sessionData.systemVersion,
+    userID: userID,
     personID: personID,
   })
 
-  await createICSession(personID, newSessionToken)
+  const uuid = await createICSession(userID, personID, newSessionToken)
 
   return c.json({ 
     ok: true, 
-    personId: personID,
+    uuid: uuid,
     sessionToken: newSessionToken,
   })
 })
@@ -223,10 +224,11 @@ auth.post('/updateDevice', async (c) => {//initial login step
     return c.json({ ok: false, message: 'Failed to verify login' }, verifyResponse.status as ContentfulStatusCode)
   }
 
-  const userData = await verifyResponse.json() as { personID: number }
+  const userData = await verifyResponse.json() as {userID: number, personID: number}
+  const userID = userData.userID
   const personID = userData.personID
 
-  if (!personID) {
+  if (!personID || !userID) {
     return c.json({ ok: false, message: 'Failed to get user information' }, 401)
   }
 
@@ -246,7 +248,6 @@ auth.post('/updateDevice', async (c) => {//initial login step
       'Accept-Language': 'en-US,en;q=0.9',
       'Accept-Encoding': 'gzip, deflate, br',
       'User-Agent': 'StudentApp/1.11.4 Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
-      //'Referer': 'https://srvusd.infinitecampus.org/campus/nav-wrapper/student/portal/student/home?appName=sanRamon',
     },
     body: JSON.stringify({
       'registrationToken': "devin was here",
@@ -276,19 +277,20 @@ auth.post('/updateDevice', async (c) => {//initial login step
     deviceModel,
     deviceType,
     systemVersion,
+    userID: userID,
     personID: personID,
   });
 
-  const sessionPersonId = await createICSession(personID, sessionToken);
+  const uuid = await createICSession(userID, personID, sessionToken);
 
-  if (!sessionPersonId) {
+  if (!uuid) {
     return c.json({ ok: false, message: 'Failed to create session record' }, 500)
   }
 
   return c.json({ 
     ok: true, 
     data: data, 
-    personId: sessionPersonId,
+    uuid: uuid,
     sessionToken,
   })
 })

@@ -44,7 +44,7 @@ export default function AuthModal() {
         const authData = await authResponse.json() as {
           ok: boolean;
           message?: string;
-          personId: number;
+          uuid: string;
           sessionToken: string;
         };
 
@@ -54,7 +54,7 @@ export default function AuthModal() {
           return;
         }
 
-        storeAuthSession(authData.personId, authData.sessionToken);
+        storeAuthSession(authData.uuid, authData.sessionToken);
         router.replace('/dashboard');
       } catch (error) {
         console.error('Error during authentication:', error);
