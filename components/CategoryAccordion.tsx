@@ -15,28 +15,26 @@ type CategoryAccordionProps = {
   category: ModifiedCategory
   allCategories: ModifiedCategory[]
   isWeighted: boolean
+  editMode?: boolean
   defaultExpanded?: boolean
-  onEditGrade: (assignment: ModifiedAssignment) => void
+  onScoreChange: (assignment: ModifiedAssignment, score: string | null) => void
   onDropGrade: (assignment: ModifiedAssignment) => void
-  onResetGrade: (objectSectionID: number) => void
   onAddAssignment: (category: ModifiedCategory) => void
   onResetCategory: (category: ModifiedCategory) => void
   onDeleteAssignment: (objectSectionID: number) => void
-  onRenameAssignment: (assignment: ModifiedAssignment) => void
 }
 
 export function CategoryAccordion({ 
   category, 
   allCategories,
   isWeighted, 
+  editMode,
   defaultExpanded = false,
-  onEditGrade,
+  onScoreChange,
   onDropGrade,
-  onResetGrade,
   onAddAssignment,
   onResetCategory,
   onDeleteAssignment,
-  onRenameAssignment,
 }: CategoryAccordionProps) {
   const [expanded, setExpanded] = useState(defaultExpanded)
   const [contentHeight, setContentHeight] = useState(0)
@@ -112,19 +110,15 @@ export function CategoryAccordion({
 
   const getProgressColor = () => {
     if (calculatedPercent === null) return 'text-stone-400'
-    if (hasModifications) return 'text-yellow-400'
-    return 'text-emerald-500'
+    if (hasModifications) return 'text-amber-400'
+    return 'text-stone-100'
   }
 
-  const getChangeColor = () => {
-    if (percentChange === null || percentChange === 0) return 'text-stone-500'
-    if (percentChange > 0) return 'text-green-400'
-    return 'text-red-400'
-  }
 
-  const formatChange = () => {
-    if (percentChange === null || percentChange === 0) return null
-    return percentChange > 0 ? `+${percentChange}%` : `${percentChange}%`
+
+  const getBorderColor = () => {
+    //if (hasModifications) return 'border-amber-500/50'
+    return 'border-stone-700'
   }
 
   const assignmentsWithImpact = category.assignments.map((assignment) => {
@@ -144,19 +138,19 @@ export function CategoryAccordion({
   const displayPercent = calculatedPercent ?? (category.progress?.progressPercent ?? null)
 
   return (
-    <View className="bg-stone-800 rounded-2xl mb-4 overflow-hidden">
+    <View className={`border ${getBorderColor()} rounded-2xl mb-4 overflow-hidden`}>
       <View className="flex-row items-center p-5">
         <Pressable onPress={toggleExpanded} className="flex-row items-center flex-1">
           <Animated.View style={animatedChevronStyle} className="mr-3">
             <Ionicons name="chevron-down" size={24} color="#a8a29e" />
           </Animated.View>
           <View className="flex-1 mr-4">
-            <Text className="text-white text-xl font-semibold" numberOfLines={2}>
+            <Text className="text-stone-100 text-xl font-semibold" numberOfLines={2}>
               {category.name}
             </Text>
             <View className="flex-row items-center mt-2 gap-3">
               {category.weight > 0 && (
-                <View className="bg-stone-700 px-2.5 py-1 rounded-lg">
+                <View className="bg-stone-800 px-2.5 py-1 rounded-lg">
                   <Text className="text-stone-300 text-sm font-medium">
                     {category.weight}%
                   </Text>
@@ -165,21 +159,13 @@ export function CategoryAccordion({
               <Text className="text-stone-500 text-base">
                 {category.assignments.length} assignment{category.assignments.length !== 1 ? 's' : ''}
               </Text>
-              {formatChange() && (
-                <View className="flex-row items-center">
-                  <Text className={`text-sm font-medium ${getChangeColor()}`}>
-                    {formatChange()}
-                  </Text>
-                </View>
-              )}
+              
             </View>
           </View>
           {displayPercent !== null && (
-            <View className="items-center">
-              <Text className={`text-2xl font-bold ${getProgressColor()}`}>
-                {displayPercent}%
-              </Text>
-            </View>
+            <Text className={`text-2xl font-bold ${getProgressColor()}`}>
+              {displayPercent}%
+            </Text>
           )}
         </Pressable>
         <MenuView
@@ -199,7 +185,7 @@ export function CategoryAccordion({
           ]}
         >
           <TouchableOpacity className="pl-3 py-2">
-            <Ionicons name="ellipsis-vertical" size={22} color="#78716c" />
+            <Ionicons name="ellipsis-horizontal" size={20} color="#a8a29e" />
           </TouchableOpacity>
         </MenuView>
       </View>
@@ -209,7 +195,7 @@ export function CategoryAccordion({
           onLayout={onContentLayout}
           style={{ position: expanded ? 'relative' : 'absolute', width: '100%' }}
         >
-          <View className="">
+          <View className="px-3 pb-3">
             {sortedAssignments.map((assignment) => (
               <GradeCard
                 key={assignment.objectSectionID}
@@ -217,11 +203,11 @@ export function CategoryAccordion({
                 percentImpact={assignment.percentImpact}
                 isModified={assignment.isModified}
                 isVirtual={assignment.objectSectionID < 0}
-                onEditGrade={() => onEditGrade(assignment)}
+                isCategory
+                editMode={editMode}
+                onScoreChange={(score) => onScoreChange(assignment, score)}
                 onDropGrade={() => onDropGrade(assignment)}
-                onResetGrade={() => onResetGrade(assignment.objectSectionID)}
                 onDeleteAssignment={() => onDeleteAssignment(assignment.objectSectionID)}
-                onRenameAssignment={() => onRenameAssignment(assignment)}
               />
             ))}
           </View>

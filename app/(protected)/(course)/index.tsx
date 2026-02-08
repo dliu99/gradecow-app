@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native'
+import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, Switch } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router'
 import { useCourseGrade } from '@/hooks/use-ic'
@@ -30,7 +30,7 @@ export default function CourseModal() {
     sectionID ? parseInt(sectionID, 10) : 0
   )
 
-  const { modifications, openEditSheet, toggleDrop, resetGrade, resetAll } = useWhatIf()
+  const { editMode, toggleEditMode, modifications, virtualAssignments, editGrade, toggleDrop, resetAll } = useWhatIf()
 
   const { modifiedCategories, calculatedGrade, originalPercent, hasModifications } = useMemo(() => {
     if (!courseData?.categories) {
@@ -42,11 +42,11 @@ export default function CourseModal() {
       }
     }
     
-    const modified = applyWhatIfModifications(courseData.categories, modifications)
+    const modified = applyWhatIfModifications(courseData.categories, modifications, virtualAssignments)
     const isWeighted = courseData.task.groupWeighted
     const calculated = recalculateGrade(modified, isWeighted)
     const origPercent = percent ? parseFloat(percent) : (courseData.task.progressPercent ?? courseData.task.percent ?? null)
-    const hasMods = modifications.size > 0
+    const hasMods = modifications.size > 0 || virtualAssignments.length > 0
     
     return { 
       modifiedCategories: modified, 
@@ -54,7 +54,7 @@ export default function CourseModal() {
       originalPercent: origPercent,
       hasModifications: hasMods
     }
-  }, [courseData, modifications, percent])
+  }, [courseData, modifications, virtualAssignments, percent])
 
   const recentGrades = useMemo(() => {
     if (!modifiedCategories.length) return []
@@ -124,20 +124,6 @@ export default function CourseModal() {
           headerTitle: courseName,
           headerStyle: { backgroundColor: 'transparent' },
           headerTintColor: '#fff',
-          /*headerRight: () => (
-            <MenuView
-              onPressAction={({ nativeEvent }) => {
-                if (nativeEvent.event === 'reset') resetAll()
-              }}
-              actions={[
-                { id: 'reset', title: 'Reset All', image: 'arrow.counterclockwise', imageColor: 'red', attributes: { destructive: true } },
-              ]}
-            >
-              <TouchableOpacity style={{ padding: 8 }}>
-                <Ionicons name="ellipsis-horizontal" size={22} color="#fff" />
-              </TouchableOpacity>
-            </MenuView>
-          ),*/
         }}
       />
       <SafeAreaView className="flex-1 bg-neutral-900" edges={['top']}>
@@ -150,19 +136,36 @@ export default function CourseModal() {
             hasModifications={hasModifications}
           />
 
+          <View className="flex-row items-center justify-between mb-6 px-1">
+            <View className="flex-row items-center">
+              <Switch
+                value={editMode}
+                onValueChange={toggleEditMode}
+
+              />
+              <Text className="text-stone-300 text-base ml-3">Edit Grades</Text>
+            </View>
+            {hasModifications && (
+              <TouchableOpacity onPress={resetAll} className="flex-row items-center">
+                <Ionicons name="refresh" size={18} color="#f87171" />
+                <Text className="text-red-400 text-base ml-1">Reset</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
           {isLoading ? (
             <View className="py-10">
               <ActivityIndicator size="large" color="#fff" />
             </View>
           ) : error ? (
-            <View className="bg-stone-800 rounded-2xl p-5">
+            <View className="border border-stone-700 rounded-2xl p-5">
               <Text className="text-red-400 text-center text-lg">
                 Failed to load grades
               </Text>
             </View>
           ) : (
             <>
-              <Text className="text-white text-3xl font-bold mb-4">Recent Grades</Text>
+              <Text className="text-stone-100 text-2xl font-bold mb-4">Recent Grades</Text>
               {recentGrades.length > 0 ? (
                 recentGrades.map((assignment) => (
                   <GradeCard
@@ -170,13 +173,13 @@ export default function CourseModal() {
                     assignment={assignment}
                     percentImpact={assignment.percentImpact}
                     isModified={assignment.isModified}
-                    onEditGrade={() => openEditSheet(assignment)}
+                    editMode={editMode}
+                    onScoreChange={(score) => editGrade(assignment.objectSectionID, score)}
                     onDropGrade={() => toggleDrop(assignment.objectSectionID, assignment.dropped ?? false)}
-                    onResetGrade={() => resetGrade(assignment.objectSectionID)}
                   />
                 ))
               ) : (
-                <View className="bg-stone-800 rounded-2xl p-5">
+                <View className="border border-stone-700 rounded-2xl p-5">
                   <Text className="text-stone-400 text-center text-lg">
                     No grades yet
                   </Text>
@@ -185,9 +188,9 @@ export default function CourseModal() {
 
               <TouchableOpacity
                 onPress={handleSeeAllGrades}
-                className="bg-stone-800 rounded-2xl py-5 px-6 mt-2 mb-20 flex-row items-center justify-between"
+                className="border border-stone-700 rounded-2xl py-5 px-6 mt-2 mb-20 flex-row items-center justify-between active:scale-[0.98] active:opacity-80"
               >
-                <Text className="text-white text-lg font-medium">
+                <Text className="text-stone-100 text-lg font-medium">
                   See all grades
                 </Text>
                 <Ionicons name="arrow-forward" size={22} color="#a8a29e" />

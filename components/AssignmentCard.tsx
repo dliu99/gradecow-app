@@ -58,7 +58,7 @@ export function AssignmentCard({ assignment, courseName, compact, now }: Assignm
   
 
   return (
-    <Pressable onPress={handlePress} className="bg-stone-800 rounded-2xl p-5 mb-4">
+    <Pressable onPress={handlePress} className="rounded-2xl p-5 border border-stone-700 mb-4 active:scale-[0.97] active:opacity-80">
       <View className="flex-row justify-between items-start">
         <View className="flex-1 mr-4">
           <Text className="text-white text-xl font-semibold leading-snug" numberOfLines={2}>

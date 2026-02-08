@@ -5,6 +5,7 @@ export type Session = {
   deviceModel: string
   deviceType: string
   systemVersion: string
+  userID: number
   personID: number
 }
 
@@ -81,7 +82,12 @@ export type AssignmentDetail = {
   notGraded: boolean
   modifiedDate: string
   releaseScoresTimeStamp: string
-  gradingAlignments: any[]
+  gradingAlignments: [{
+    "weight": number,
+            //"scoringType": "p",
+            "totalPoints": number,
+            "sectionID": number,
+  }]
   curriculumContent: {
     objectID: number
     name: string
@@ -90,7 +96,12 @@ export type AssignmentDetail = {
     curriculumBlocks: any[]
   }
   submissions: any[]
-  scores: any[]
+  scores: [{
+    "scorePoints": string,
+    "scorePercentage": string,
+    "comments": any,
+
+  }]
   hasRubricScores: boolean
 }
 

@@ -2,7 +2,11 @@ import { Stack } from "expo-router";
 
 export default function ProfileLayout() {
   return (
-    <Stack>
+    <Stack
+      screenOptions={{
+        headerTintColor: '#fff',
+      }}
+    >
       <Stack.Screen
         name="index"
         options={{

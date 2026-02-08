@@ -4,25 +4,25 @@ export const storage = createMMKV({
   id: 'gradecow-storage',
 })
 
-export function storeAuthSession(personId: number, sessionToken: string): void {
-  console.log('storing auth session to mmkv', personId);
-  storage.set('personId', personId)
+export function storeAuthSession(uuid: string, sessionToken: string): void {
+  console.log('storing auth session to mmkv', uuid);
+  storage.set('uuid', uuid)
   storage.set('sessionToken', sessionToken)
 }
 
-export function getAuthSession(): { personId: number; sessionToken: string } | null {
-  const personId = storage.getNumber('personId')
+export function getAuthSession(): { uuid: string; sessionToken: string } | null {
+  const uuid = storage.getString('uuid')
   const sessionToken = storage.getString('sessionToken')
   
-  if (!personId || !sessionToken) {
+  if (!uuid || !sessionToken) {
     return null
   }
   
-  return { personId, sessionToken }
+  return { uuid, sessionToken }
 }
 
 export function clearAuth(): void {
-  storage.remove('personId')
+  storage.remove('uuid')
   storage.remove('sessionToken')
 }
 
@@ -54,7 +54,7 @@ export async function verifyAndRefreshAuth(): Promise<boolean> {
 
     const data = await response.json() as {
     ok: boolean
-    personId: number
+    uuid: string
     sessionToken: string
     }
 
@@ -63,7 +63,7 @@ export async function verifyAndRefreshAuth(): Promise<boolean> {
     return false
     }
 
-    storeAuthSession(data.personId, data.sessionToken)
+    storeAuthSession(data.uuid, data.sessionToken)
     return true
     } catch {
     clearAuth()

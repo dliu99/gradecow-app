@@ -1,13 +1,11 @@
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native'
+import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, Switch } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router'
 import { useCourseGrade } from '@/hooks/use-ic'
 import { CategoryAccordion } from '@/components/CategoryAccordion'
 import { GenericGradeCard } from '@/components/GenericGradeCard'
 import { AddAssignmentSheet } from '@/components/AddAssignmentSheet'
-import { RenameAssignmentSheet } from '@/components/RenameAssignmentSheet'
 import { useMemo } from 'react'
-import { MenuView } from '@react-native-menu/menu'
 import { Ionicons } from '@expo/vector-icons'
 import { useWhatIf } from './_context'
 import { applyWhatIfModifications, recalculateGrade, ModifiedAssignment, ModifiedCategory, percentToLetterGrade } from '@/utils/grade-calculator'
@@ -28,7 +26,7 @@ export default function AllGradesModal() {
     sectionID ? parseInt(sectionID, 10) : 0
   )
 
-  const { modifications, virtualAssignments, openEditSheet, toggleDrop, resetGrade, resetAll, openAddSheet, removeVirtualAssignmentsForCategory, removeVirtualAssignment, openRenameSheet } = useWhatIf()
+  const { editMode, toggleEditMode, modifications, virtualAssignments, editGrade, toggleDrop, resetAll, openAddSheet, removeVirtualAssignmentsForCategory, removeVirtualAssignment } = useWhatIf()
 
   const { modifiedCategories, calculatedGrade, originalPercent, hasModifications, isWeighted } = useMemo(() => {
     if (!courseData?.categories) {
@@ -69,16 +67,12 @@ export default function AllGradesModal() {
     ? Math.round((displayPercent - originalPercent) * 100) / 100
     : null
 
-  const handleEditGrade = (assignment: ModifiedAssignment) => {
-    openEditSheet(assignment)
+  const handleScoreChange = (assignment: ModifiedAssignment, score: string | null) => {
+    editGrade(assignment.objectSectionID, score)
   }
 
   const handleDropGrade = (assignment: ModifiedAssignment) => {
     toggleDrop(assignment.objectSectionID, assignment.dropped ?? false)
-  }
-
-  const handleResetGrade = (objectSectionID: number) => {
-    resetGrade(objectSectionID)
   }
 
   const handleAddAssignment = (category: ModifiedCategory) => {
@@ -86,18 +80,11 @@ export default function AllGradesModal() {
   }
 
   const handleResetCategory = (category: ModifiedCategory) => {
-    category.assignments.forEach(assignment => {
-      resetGrade(assignment.objectSectionID)
-    })
     removeVirtualAssignmentsForCategory(category.groupID)
   }
 
   const handleDeleteAssignment = (objectSectionID: number) => {
     removeVirtualAssignment(objectSectionID)
-  }
-
-  const handleRenameAssignment = (assignment: ModifiedAssignment) => {
-    openRenameSheet(assignment)
   }
 
   return (
@@ -108,20 +95,6 @@ export default function AllGradesModal() {
           headerTitle: 'All Grades',
           headerStyle: { backgroundColor: 'transparent' },
           headerTintColor: '#fff',
-          headerRight: () => (
-            <MenuView
-              onPressAction={({ nativeEvent }) => {
-                if (nativeEvent.event === 'reset') resetAll()
-              }}
-              actions={[
-                { id: 'reset', title: 'Reset All', image: 'arrow.counterclockwise', imageColor: 'red', attributes: { destructive: true } },
-              ]}
-            >
-              <TouchableOpacity style={{ padding: 8 }}>
-                <Ionicons name="ellipsis-horizontal" size={22} color="#fff" />
-              </TouchableOpacity>
-            </MenuView>
-          ),
         }}
       />
       <SafeAreaView className="flex-1 bg-neutral-900" edges={['top']}>
@@ -135,19 +108,37 @@ export default function AllGradesModal() {
             hasModifications={hasModifications}
           />
 
+          <View className="flex-row items-center justify-between mb-6 px-1">
+            <View className="flex-row items-center">
+              <Switch
+                value={editMode}
+                onValueChange={toggleEditMode}
+                trackColor={{ false: '#44403c', true: '#f59e0b' }}
+                thumbColor="#fff"
+              />
+              <Text className="text-stone-300 text-base ml-3">Edit Grades</Text>
+            </View>
+            {hasModifications && (
+              <TouchableOpacity onPress={resetAll} className="flex-row items-center">
+                <Ionicons name="refresh" size={18} color="#f87171" />
+                <Text className="text-red-400 text-base ml-1">Reset</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
           {isLoading ? (
             <View className="py-10">
               <ActivityIndicator size="large" color="#fff" />
             </View>
           ) : error ? (
-            <View className="bg-stone-800 rounded-2xl p-5">
+            <View className="border border-stone-700 rounded-2xl p-5">
               <Text className="text-red-400 text-center text-lg">
                 Failed to load grades
               </Text>
             </View>
           ) : (
             <>
-              <Text className="text-white text-3xl font-bold mb-4">Categories</Text>
+              <Text className="text-stone-100 text-2xl font-bold mb-4">Categories</Text>
               {modifiedCategories && modifiedCategories.length > 0 ? (
                 <View className="mb-20">
                   {modifiedCategories.map((category, index) => (
@@ -156,19 +147,18 @@ export default function AllGradesModal() {
                       category={category}
                       allCategories={modifiedCategories}
                       isWeighted={isWeighted}
+                      editMode={editMode}
                       defaultExpanded={index === 0}
-                      onEditGrade={handleEditGrade}
+                      onScoreChange={handleScoreChange}
                       onDropGrade={handleDropGrade}
-                      onResetGrade={handleResetGrade}
                       onAddAssignment={handleAddAssignment}
                       onResetCategory={handleResetCategory}
                       onDeleteAssignment={handleDeleteAssignment}
-                      onRenameAssignment={handleRenameAssignment}
                     />
                   ))}
                 </View>
               ) : (
-                <View className="bg-stone-800 rounded-2xl p-5">
+                <View className="border border-stone-700 rounded-2xl p-5">
                   <Text className="text-stone-400 text-center text-lg">
                     No categories found
                   </Text>
@@ -179,7 +169,6 @@ export default function AllGradesModal() {
         </ScrollView>
       </SafeAreaView>
       <AddAssignmentSheet />
-      <RenameAssignmentSheet />
     </>
   )
 }

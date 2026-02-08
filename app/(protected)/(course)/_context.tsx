@@ -1,5 +1,4 @@
 import { createContext, useContext, useState, useCallback, useRef, ReactNode } from 'react'
-import { CourseGradeAssignment } from '@/api/src/types'
 import BottomSheet from '@gorhom/bottom-sheet'
 
 type WhatIfModification = {
@@ -17,16 +16,13 @@ export type VirtualAssignment = {
 }
 
 type WhatIfContextType = {
+  editMode: boolean
+  toggleEditMode: () => void
   modifications: Map<number, WhatIfModification>
   virtualAssignments: VirtualAssignment[]
   editGrade: (objectSectionID: number, score: string | null) => void
   toggleDrop: (objectSectionID: number, currentDropped: boolean) => void
-  resetGrade: (objectSectionID: number) => void
   resetAll: () => void
-  editingAssignment: CourseGradeAssignment | null
-  openEditSheet: (assignment: CourseGradeAssignment) => void
-  closeEditSheet: () => void
-  sheetRef: React.RefObject<BottomSheet | null>
   addingToGroupID: number | null
   addAssignment: (groupID: number, score: string, totalPoints: number) => void
   removeVirtualAssignment: (objectSectionID: number) => void
@@ -36,23 +32,20 @@ type WhatIfContextType = {
   addSheetRef: React.RefObject<BottomSheet | null>
   getVirtualAssignmentCount: (groupID: number) => number
   renameVirtualAssignment: (objectSectionID: number, newName: string) => void
-  renamingAssignment: CourseGradeAssignment | null
-  openRenameSheet: (assignment: CourseGradeAssignment) => void
-  closeRenameSheet: () => void
-  renameSheetRef: React.RefObject<BottomSheet | null>
 }
 
 const WhatIfContext = createContext<WhatIfContextType | null>(null)
 
 export function WhatIfProvider({ children }: { children: ReactNode }) {
+  const [editMode, setEditMode] = useState(false)
   const [modifications, setModifications] = useState<Map<number, WhatIfModification>>(new Map())
-  const [editingAssignment, setEditingAssignment] = useState<CourseGradeAssignment | null>(null)
-  const [renamingAssignment, setRenamingAssignment] = useState<CourseGradeAssignment | null>(null)
   const [virtualAssignments, setVirtualAssignments] = useState<VirtualAssignment[]>([])
   const [addingToGroupID, setAddingToGroupID] = useState<number | null>(null)
-  const sheetRef = useRef<BottomSheet>(null)
   const addSheetRef = useRef<BottomSheet>(null)
-  const renameSheetRef = useRef<BottomSheet>(null)
+
+  const toggleEditMode = useCallback(() => {
+    setEditMode(prev => !prev)
+  }, [])
 
   const editGrade = useCallback((objectSectionID: number, score: string | null) => {
     if (objectSectionID < 0) {
@@ -88,31 +81,9 @@ export function WhatIfProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const resetGrade = useCallback((objectSectionID: number) => {
-    if (objectSectionID < 0) {
-      setVirtualAssignments(prev => prev.filter(a => a.objectSectionID !== objectSectionID))
-    } else {
-      setModifications(prev => {
-        const next = new Map(prev)
-        next.delete(objectSectionID)
-        return next
-      })
-    }
-  }, [])
-
   const resetAll = useCallback(() => {
     setModifications(new Map())
     setVirtualAssignments([])
-  }, [])
-
-  const openEditSheet = useCallback((assignment: CourseGradeAssignment) => {
-    setEditingAssignment(assignment)
-    sheetRef.current?.expand()
-  }, [])
-
-  const closeEditSheet = useCallback(() => {
-    sheetRef.current?.close()
-    setEditingAssignment(null)
   }, [])
 
   const getVirtualAssignmentCount = useCallback((groupID: number) => {
@@ -157,29 +128,16 @@ export function WhatIfProvider({ children }: { children: ReactNode }) {
     ))
   }, [])
 
-  const openRenameSheet = useCallback((assignment: CourseGradeAssignment) => {
-    setRenamingAssignment(assignment)
-    renameSheetRef.current?.expand()
-  }, [])
-
-  const closeRenameSheet = useCallback(() => {
-    renameSheetRef.current?.close()
-    setRenamingAssignment(null)
-  }, [])
-
   return (
     <WhatIfContext.Provider
       value={{
+        editMode,
+        toggleEditMode,
         modifications,
         virtualAssignments,
         editGrade,
         toggleDrop,
-        resetGrade,
         resetAll,
-        editingAssignment,
-        openEditSheet,
-        closeEditSheet,
-        sheetRef,
         addingToGroupID,
         addAssignment,
         removeVirtualAssignment,
@@ -189,10 +147,6 @@ export function WhatIfProvider({ children }: { children: ReactNode }) {
         addSheetRef,
         getVirtualAssignmentCount,
         renameVirtualAssignment,
-        renamingAssignment,
-        openRenameSheet,
-        closeRenameSheet,
-        renameSheetRef,
       }}
     >
       {children}
@@ -207,4 +161,3 @@ export function useWhatIf() {
   }
   return context
 }
-

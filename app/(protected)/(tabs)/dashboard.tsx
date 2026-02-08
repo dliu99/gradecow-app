@@ -8,6 +8,7 @@ import { Assignment } from '@/api/src/types'
 import { useEffect, useMemo, useState } from 'react'
 import dayjs from 'dayjs'
 
+
 const GREETINGS = {
   morning: [
     'Good morning, {name}',
@@ -120,7 +121,7 @@ function AssignmentSection({
   return (
     <View className="">
       {showSectionTitle && (
-        <Text className="text-white text-3xl font-bold">{sectionTitle}</Text>
+        <Text className="text-white text-2xl font-bold">{sectionTitle}</Text>
       )}
 
       {Array.from(byDate.entries()).map(([dateKey, dateAssignments]) => {
@@ -149,12 +150,14 @@ function AssignmentSection({
 
 export default function Dashboard() {
   const [refreshing, setRefreshing] = useState(false)
+
   const { data: assignments, isLoading: assignmentsLoading, error: assignmentsError, refetch: refetchAssignments } = useAllAssignments()
   const { data: grades, isLoading: gradesLoading, error: gradesError, refetch: refetchGrades } = useGrades()
   const { data: user, isLoading: userLoading, error: userError, refetch: refetchUser } = useUser()
 
   const onRefresh = async () => {
     setRefreshing(true)
+    setToday(dayjs())
     try {
       await Promise.all([
         refetchAssignments(),
@@ -284,7 +287,7 @@ export default function Dashboard() {
             />
             {grouped.beyond.length > 0 && (
               <Link href="/(protected)/(tabs)/search" asChild>
-                <TouchableOpacity className="bg-stone-800 rounded-2xl py-5 px-6  mb-16 flex-row items-center justify-between">
+                <TouchableOpacity className="rounded-2xl p-5 border border-stone-700 mb-32 active:scale-[0.97] active:opacity-80 py-5 px-6  flex-row items-center justify-between">
                   <Text className="text-white text-base font-medium">
                     Search all assignments ({grouped.beyond.length} more)
                   </Text>

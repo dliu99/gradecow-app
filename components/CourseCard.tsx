@@ -77,15 +77,36 @@ export function CourseCard({ course, lastUpdated, recentImpact }: CourseCardProp
   const dateDisplay = formatRelativeDate(lastUpdated)
 
   return (
-    <Pressable onPress={handlePress} className="bg-stone-800 rounded-2xl p-5 mb-4 active:scale-[0.97] active:opacity-80">
+    <Pressable onPress={handlePress} className="rounded-2xl p-5 border border-stone-700 mb-4 active:scale-[0.97] active:opacity-80">
       <View className="flex-row justify-between items-center">
         <View className="flex-1 mr-4">
-          <Text className="text-white text-lg font-semibold leading-snug" numberOfLines={2}>
+          <Text className="text-stone-100 text-2xl mb-2 font-semibold leading-snug" numberOfLines={2}>
             {course.courseName}
           </Text>
-          <Text className="text-stone-400 text-base " numberOfLines={1}>
+          {dateDisplay ? (
+            <View className="flex-row items-center">
+              {dateDisplay.includes('hour') || dateDisplay.includes('minute') ? (
+                <Text className="text-base font-medium">
+                  <Text className="text-green-400">{dateDisplay.split(' at ')[0]}</Text>
+                  <Text className="text-stone-500">{' at ' + dateDisplay.split(' at ')[1]}</Text>
+                </Text>
+              ) : (
+                <Text className="text-stone-500 text-base">
+                  {dateDisplay}
+                </Text>
+              )}
+            </View>
+          ) : (
+            <Text className="text-stone-500 text-base mt-1">{course.termName}</Text>
+          )}
+        </View>
+        <View className="flex-col items-end  justify-center">
           
-            {course.teacher}{' '}
+            <Text className={`text-2xl font-bold text-stone-100 bg-stone-900`}>
+              {course.score ?? '-'} ({course.percent !== undefined ? `${course.percent}%` : '-'})
+              
+            </Text>
+            <Text>
             {formatImpact() ? 
             (
               getImpactColor() === 'text-green-400' ? (
@@ -95,28 +116,9 @@ export function CourseCard({ course, lastUpdated, recentImpact }: CourseCardProp
               ) : null
             ) : null}
             {formatImpact() && (
-            <Text className={`${getImpactColor()}`}>({formatImpact()}) </Text>)}
-            
-            
-          </Text>
-          {dateDisplay ? (
-            <View className="flex-row items-center mt-2 gap-2">
-              <Text className="text-stone-500 text-base">
-              {dateDisplay} 
-              </Text>
-            </View>
-          ) : (
-            <Text className="text-stone-500 text-base mt-1">{course.termName}</Text>
-          )}
-        </View>
-        <View className="flex-row items-center gap-3">
-          <View className="items-center ">
-          
-            <Text className={`text-2xl font-semibold text-emerald-500`}>
-              {course.score ?? '-'} ({course.percent !== undefined ? `${course.percent}%` : '-'})
+            <Text className={`${getImpactColor()} text-base`}>({formatImpact()}) </Text>)}
             </Text>
-          </View>
-          <Ionicons name="arrow-forward" size={24} color="#ffffff" />
+
         </View>
 
       </View>

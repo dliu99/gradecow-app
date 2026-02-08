@@ -1,7 +1,6 @@
 import { Stack } from 'expo-router'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { WhatIfProvider } from './_context'
-import { EditGradeSheet } from '@/components/EditGradeSheet'
 
 export default function CourseLayout() {
   return (
@@ -18,7 +17,6 @@ export default function CourseLayout() {
           <Stack.Screen name="index" />
           <Stack.Screen name="all-grades" options={{ presentation: 'card' }} />
         </Stack>
-        <EditGradeSheet />
       </WhatIfProvider>
     </GestureHandlerRootView>
   )
