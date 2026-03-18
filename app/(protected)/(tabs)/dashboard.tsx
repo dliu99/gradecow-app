@@ -243,7 +243,7 @@ export default function Dashboard() {
   return (
     <SafeAreaView className="flex-1 bg-neutral-900" edges={['top']}>
       <ScrollView
-        className="flex-1 px-4 pt-8"
+        className="flex-1 px-4 pt-12"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -255,9 +255,9 @@ export default function Dashboard() {
           />
         }
       >
-        <View className="mb-6">
-          <Text className="text-white text-4xl font-bold">
-            {getGreeting(user?.firstName ?? '')}
+        <View className="pb-4">
+          <Text className="text-white text-3xl font-bold">
+            {getGreeting(user?.firstName ?? '')}.
           </Text>
           <Text className="text-stone-500 text-lg font-semibold mt-2">
             {weekStats.total > 0 ? <Text>You have {weekStats.total} assignment(s) left this week, with your busiest class being <Text className="text-green-500">{weekStats.busiestCourse.replace('.','')}</Text>.</Text> : 'You have no assignments this week!'}
@@ -287,7 +287,7 @@ export default function Dashboard() {
             />
             {grouped.beyond.length > 0 && (
               <Link href="/(protected)/(tabs)/search" asChild>
-                <TouchableOpacity className="rounded-2xl p-5 border border-stone-700 mb-32 active:scale-[0.97] active:opacity-80 py-5 px-6  flex-row items-center justify-between">
+                <TouchableOpacity className="rounded-2xl p-5 border border-stone-700 mb-6 active:scale-[0.97] active:opacity-80 py-5 px-6  flex-row items-center justify-between">
                   <Text className="text-white text-base font-medium">
                     Search all assignments ({grouped.beyond.length} more)
                   </Text>

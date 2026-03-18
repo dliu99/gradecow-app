@@ -71,7 +71,7 @@ export default function Grades() {
   return (
     <SafeAreaView className="flex-1 bg-neutral-900">
       <ScrollView
-          className="flex-1 px-4 pt-8"
+          className="flex-1 px-4 pt-12"
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -87,7 +87,7 @@ export default function Grades() {
           <Text className="text-stone-400 text-center mb-6">Loading...</Text>
         ) : courses && courses.length > 0 ? (
           <>
-            <Text className="text-white text-4xl font-bold">Grades</Text>
+            <Text className="text-white text-3xl font-bold">Grades</Text>
             <View className="mt-4">
               {courses.map((course) => (
                 <CourseCardWithDetails 

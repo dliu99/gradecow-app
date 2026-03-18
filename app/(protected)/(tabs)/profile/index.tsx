@@ -65,7 +65,7 @@ export default function Profile() {
   return (
     <SafeAreaView className="flex-1 bg-neutral-900" edges={['top']}>
       <ScrollView
-        className="flex-1 px-4 pt-8"
+        className="flex-1 px-4 pt-12"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -77,7 +77,7 @@ export default function Profile() {
           />
         }
       >
-        <Text className="text-white text-4xl font-bold mb-6">Profile</Text>
+        <Text className="text-white text-3xl font-bold mb-6">Profile</Text>
 
         {profile?.gpa && (
           <View className="flex-row gap-4 mb-4">
