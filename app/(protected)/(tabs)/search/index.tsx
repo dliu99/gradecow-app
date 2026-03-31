@@ -1,84 +1,90 @@
-import { View, Text, ScrollView, ActivityIndicator } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { useAllAssignments, useGrades } from '@/hooks/use-ic'
-import { AssignmentCard } from '@/components/AssignmentCard'
-import { Assignment } from '@/api/src/types'
-import { useMemo } from 'react'
-import dayjs from 'dayjs'
-import { useSearch } from './_context'
+import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAllAssignments, useGrades } from '@/hooks/use-ic';
+import { AssignmentCard } from '@/components/AssignmentCard';
+import { Assignment } from '@/api/src/types';
+import { useMemo } from 'react';
+import dayjs from 'dayjs';
+import { useSearch } from './_context';
 
 function getAllUpcomingAssignments(assignments: Assignment[], today: dayjs.Dayjs): Assignment[] {
-  const todayStart = today.startOf('day')
+  const todayStart = today.startOf('day');
   return assignments
     .filter((a) => {
-      const dueDate = dayjs(a.dueDate)
-      return dueDate.isValid() && (dueDate.startOf('day').isSame(todayStart) || dueDate.isAfter(todayStart))
+      const dueDate = dayjs(a.dueDate);
+      return (
+        dueDate.isValid() &&
+        (dueDate.startOf('day').isSame(todayStart) || dueDate.isAfter(todayStart))
+      );
     })
-    .sort((a, b) => dayjs(a.dueDate).valueOf() - dayjs(b.dueDate).valueOf())
+    .sort((a, b) => dayjs(a.dueDate).valueOf() - dayjs(b.dueDate).valueOf());
 }
 
 export default function Search() {
-  const { query } = useSearch()
-  const { data: assignments, isLoading: assignmentsLoading } = useAllAssignments()
-  const { data: grades, isLoading: gradesLoading } = useGrades()
+  const { query } = useSearch();
+  const { data: assignments, isLoading: assignmentsLoading } = useAllAssignments();
+  const { data: grades, isLoading: gradesLoading } = useGrades();
 
   const courseNameMap = useMemo(() => {
-    const map = new Map<number, string>()
+    const map = new Map<number, string>();
     if (grades) {
       for (const course of grades) {
-        map.set(course.sectionID, course.courseName)
+        map.set(course.sectionID, course.courseName);
       }
     }
-    return map
-  }, [grades])
+    return map;
+  }, [grades]);
 
-  const today = useMemo(() => dayjs(), [])
+  const today = useMemo(() => dayjs(), []);
 
   const upcomingAssignments = useMemo(() => {
-    if (!assignments) return []
-    return getAllUpcomingAssignments(assignments, today)
-  }, [assignments, today])
+    if (!assignments) return [];
+    return getAllUpcomingAssignments(assignments, today);
+  }, [assignments, today]);
 
   const filteredAssignments = useMemo(() => {
-    if (!query.trim()) return upcomingAssignments
-    const lowerQuery = query.toLowerCase()
+    if (!query.trim()) return upcomingAssignments;
+    const lowerQuery = query.toLowerCase();
     return upcomingAssignments.filter((a) => {
-      const nameMatch = a.assignmentName?.toLowerCase().includes(lowerQuery)
-      const courseName = courseNameMap.get(a.sectionID)
-      const courseMatch = courseName?.toLowerCase().includes(lowerQuery)
-      return nameMatch || courseMatch
-    })
-  }, [upcomingAssignments, query, courseNameMap])
+      const nameMatch = a.assignmentName?.toLowerCase().includes(lowerQuery);
+      const courseName = courseNameMap.get(a.sectionID);
+      const courseMatch = courseName?.toLowerCase().includes(lowerQuery);
+      return nameMatch || courseMatch;
+    });
+  }, [upcomingAssignments, query, courseNameMap]);
 
   const byDate = useMemo(() => {
-    const map = new Map<string, Assignment[]>()
+    const map = new Map<string, Assignment[]>();
     for (const a of filteredAssignments) {
-      const dateKey = dayjs(a.dueDate).startOf('day').format('YYYY-MM-DD')
-      if (!map.has(dateKey)) map.set(dateKey, [])
-      map.get(dateKey)!.push(a)
+      const dateKey = dayjs(a.dueDate).startOf('day').format('YYYY-MM-DD');
+      if (!map.has(dateKey)) map.set(dateKey, []);
+      map.get(dateKey)!.push(a);
     }
-    return map
-  }, [filteredAssignments])
+    return map;
+  }, [filteredAssignments]);
 
-  const isLoading = assignmentsLoading || gradesLoading
+  const isLoading = assignmentsLoading || gradesLoading;
 
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-neutral-900 items-center justify-center">
+      <SafeAreaView className="flex-1 items-center justify-center bg-neutral-900">
         <ActivityIndicator size="large" color="#fff" />
       </SafeAreaView>
-    )
+    );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-neutral-900" edges={[]}>
-      <ScrollView 
-        className="flex-1 px-5" 
+    <SafeAreaView className="flex-1 bg-neutral-900" edges={[]} collapsable={false}>
+      <ScrollView
+        className="flex-1"
         contentInsetAdjustmentBehavior="automatic"
-      >
+        contentContainerStyle={{
+          paddingBottom: 24,
+          paddingHorizontal: 20,
+        }}>
         {filteredAssignments.length === 0 ? (
           <View className="flex-1 items-center justify-center pt-20">
-            <Text className="text-white text-xl font-medium">
+            <Text className="text-xl font-medium text-white">
               {query.trim() ? 'No matching assignments' : 'No upcoming assignments'}
             </Text>
           </View>
@@ -86,10 +92,12 @@ export default function Search() {
           <>
             {/*<Text className="text-white text-3xl font-bold mt-9">Assignments</Text>*/}
             {Array.from(byDate.entries()).map(([dateKey, dateAssignments]) => {
-              const date = dayjs(dateKey)
+              const date = dayjs(dateKey);
               return (
                 <View key={dateKey}>
-                  <Text className="text-stone-500 text-xl font-semibold mt-2 mb-2">{date.format('dddd, MMMM D')}</Text>
+                  <Text className="mb-2 mt-2 text-xl font-semibold text-stone-500">
+                    {date.format('dddd, MMMM D')}
+                  </Text>
                   {dateAssignments.map((assignment) => (
                     <AssignmentCard
                       key={`${assignment.objectSectionID}-${assignment.assignmentName}`}
@@ -99,11 +107,11 @@ export default function Search() {
                     />
                   ))}
                 </View>
-              )
+              );
             })}
           </>
         )}
       </ScrollView>
     </SafeAreaView>
-  )
+  );
 }
