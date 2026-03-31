@@ -1,6 +1,6 @@
 import { View, Text, Pressable, useWindowDimensions } from 'react-native'
 import { Assignment } from '@/api/src/types'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import dayjs from 'dayjs'
 import { useRouter } from 'expo-router'
 
@@ -23,6 +23,7 @@ function getIntensityClass(count: number): string {
 export function AssignmentHeatmap({ assignments, courseNameMap, currentDate }: AssignmentHeatmapProps) {
   const { width } = useWindowDimensions()
   const router = useRouter()
+  const [gridWidth, setGridWidth] = useState<number | null>(null)
 
   const assignmentsByDate = useMemo(() => {
     const map = new Map<string, Assignment[]>()
@@ -61,39 +62,41 @@ export function AssignmentHeatmap({ assignments, courseNameMap, currentDate }: A
     return days
   }, [currentDate])
 
-  const cellSize = (width - 32 - 24) / 7
   const gap = 4
+  const availableWidth = gridWidth ?? width - 64
+  const cellSize = Math.max(0, (availableWidth - gap * 6) / 7)
 
   return (
     <View className="mb-8">
       <View className="rounded-2xl p-4 border border-stone-700">
-        <View className="flex-row mb-2">
-          {WEEKDAYS.map((day, index) => (
-            <View key={index} style={{ width: cellSize }} className="items-center">
-              <Text className="text-stone-500 text-xs font-medium">{day}</Text>
-            </View>
-          ))}
-        </View>
+        <View onLayout={(event) => setGridWidth(event.nativeEvent.layout.width)}>
+          <View className="flex-row mb-2">
+            {WEEKDAYS.map((day, index) => (
+              <View key={index} style={{ width: cellSize }} className="items-center">
+                <Text className="text-stone-500 text-xs font-medium">{day}</Text>
+              </View>
+            ))}
+          </View>
 
-        <View className="flex-row flex-wrap" style={{ gap }}>
-          {calendarDays.map((day, index) => {
-            const count = day.dateKey ? assignmentsByDate.get(day.dateKey)?.length ?? 0 : 0
-            const isToday = day.dateKey === currentDate.format('YYYY-MM-DD')
-            const hasAssignments = count > 0
+          <View className="flex-row flex-wrap" style={{ gap }}>
+            {calendarDays.map((day, index) => {
+              const count = day.dateKey ? assignmentsByDate.get(day.dateKey)?.length ?? 0 : 0
+              const isToday = day.dateKey === currentDate.format('YYYY-MM-DD')
+              const hasAssignments = count > 0
 
-            return (
-              <Pressable
-                key={index}
-                onPress={() => hasAssignments && day.dateKey && router.push(`/(protected)/day-modal?date=${day.dateKey}`)}
-                style={{ width: cellSize - gap, height: cellSize - gap }}
-                className={`rounded-lg items-center active:scale-[0.97] active:opacity-80 justify-center ${day.date ? getIntensityClass(count) : 'bg-transparent'} ${isToday ? 'border-2 border-stone-700' : ''}`}
-              >
-              </Pressable>
-            )
-          })}
+              return (
+                <Pressable
+                  key={index}
+                  onPress={() => hasAssignments && day.dateKey && router.push(`/(protected)/day-modal?date=${day.dateKey}`)}
+                  style={{ width: cellSize, height: cellSize }}
+                  className={`rounded-lg items-center active:scale-[0.97] active:opacity-80 justify-center ${day.date ? getIntensityClass(count) : 'bg-transparent'} ${isToday ? 'border-2 border-stone-700' : ''}`}
+                >
+                </Pressable>
+              )
+            })}
+          </View>
         </View>
       </View>
     </View>
   )
 }
-
