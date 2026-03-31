@@ -67,8 +67,12 @@ export default function ResponsiveSchedule() {
   return (
     <SafeAreaView className="flex-1 bg-neutral-900" edges={['top']}>
       <ScrollView
-        className="flex-1 px-4"
-        contentContainerStyle={{ paddingBottom: 32 }}
+        className="flex-1"
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={{
+          paddingBottom: 24,
+          paddingHorizontal: 16,
+        }}
         refreshControl={
           <RefreshControl
             refreshing={isFetching}
@@ -79,11 +83,6 @@ export default function ResponsiveSchedule() {
           />
         }
       >
-        <View className="mb-6">
-          {/*<Text className="text-white text-4xl font-bold">Responsive Schedule</Text>}*/}
-
-        </View>
-
         {error && (
           <View className="bg-red-900/40 rounded-2xl p-4 mb-4">
             <Text className="text-red-200">Unable to load. Pull to refresh.</Text>
@@ -186,4 +185,3 @@ export default function ResponsiveSchedule() {
     </SafeAreaView>
   )
 }
-
